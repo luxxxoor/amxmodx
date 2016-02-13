@@ -26,7 +26,7 @@
 //
 
 #if defined _dbi_included
-  #endinput
+	#endinput
 #endif
 #define _dbi_included
 
@@ -34,11 +34,7 @@
 // there's really no reason to anyway.
 #assert !defined _sqlx_included
 
-#if AMXX_VERSION_NUM >= 175
- #pragma reqclass dbi
-#else
- #pragma library dbi
-#endif
+#pragma reqclass dbi
 
 enum Sql
 {
@@ -86,13 +82,13 @@ native dbi_nextrow(Result:_result);
  * One extra param: returns Float: byref
  * Two extra param: Stores string with length
  */
-native dbi_field(Result:_result, _fieldnum, {Float,_}:... );
+native dbi_field(Result:_result, _fieldnum, any:... );
 
 /* Gets a field by name.  Returns 0 on failure.
  * One extra param: returns Float: byref
  * Two extra param: Stores string with length
  */
-native dbi_result(Result:_result, _field[], {Float,_}:... );
+native dbi_result(Result:_result, _field[], any:... );
 
 /* Returns the number of rows returned from a query
  */

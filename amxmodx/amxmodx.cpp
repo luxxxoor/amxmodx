@@ -18,10 +18,9 @@
 #include "CFlagManager.h"
 #include "nongpl_matches.h"
 #include "format.h"
-#include <amxmodx_version.h>
 
 extern CFlagManager FlagMan;
-CVector<CAdminData *> DynamicAdmins;
+ke::Vector<CAdminData *> DynamicAdmins;
 
 static cell AMX_NATIVE_CALL get_xvar_id(AMX *amx, cell *params)
 {
@@ -29,7 +28,7 @@ static cell AMX_NATIVE_CALL get_xvar_id(AMX *amx, cell *params)
 	char* sName = get_amxstring(amx, params[1], 0, len);
 	cell ptr;
 
-	if (!strcmp(sName, "MaxClients"))
+	if (!strcmp(sName, "MaxClients") || !strcmp(sName, "NULL_STRING") || !strcmp(sName, "NULL_VECTOR"))
 	{
 		return -1;
 	}
@@ -84,7 +83,7 @@ static cell AMX_NATIVE_CALL emit_sound(AMX *amx, cell *params) /* 7 param */
 				EMIT_SOUND_DYN2(pPlayer->pEdict, channel, szSample, vol, att, flags, pitch);
 		}
 	} else {
-		edict_t* pEdict = INDEXENT(params[1]);
+		edict_t* pEdict = TypeConversion.id_to_edict(params[1]);
 		
 		if (!FNullEnt(pEdict))
 			EMIT_SOUND_DYN2(pEdict, channel, szSample, vol, att, flags, pitch);
@@ -567,7 +566,7 @@ static cell AMX_NATIVE_CALL set_dhudmessage(AMX *amx, cell *params) /* 10 param 
 	g_hudset.b1 = static_cast<byte>(params[3]);
 	g_hudset.x = amx_ctof(params[4]);
 	g_hudset.y = amx_ctof(params[5]);
-	g_hudset.effect = params[6];;
+	g_hudset.effect = params[6];
 	g_hudset.fxTime = amx_ctof(params[7]);
 	g_hudset.holdTime = amx_ctof(params[8]);
 	g_hudset.fadeinTime = amx_ctof(params[9]);
@@ -649,12 +648,12 @@ static cell AMX_NATIVE_CALL show_dhudmessage(AMX *amx, cell *params) /* 2 param 
 static cell AMX_NATIVE_CALL get_user_name(AMX *amx, cell *params) /* 3 param */
 {
 	int index = params[1];
-	int maxlen = params[3] + 1; // EOS.
+	int maxlen = params[3];
 
 	if (index < 1 || index > gpGlobals->maxClients)
 		return set_amxstring_utf8(amx, params[2], hostname->string, strlen(hostname->string), maxlen);
 	else
-		return set_amxstring_utf8(amx, params[2], g_players[index].name.c_str(), g_players[index].name.size(), maxlen);
+		return set_amxstring_utf8(amx, params[2], g_players[index].name.chars(), g_players[index].name.length(), maxlen);
 }
 
 static cell AMX_NATIVE_CALL get_user_index(AMX *amx, cell *params) /* 1 param */
@@ -666,7 +665,7 @@ static cell AMX_NATIVE_CALL get_user_index(AMX *amx, cell *params) /* 1 param */
 	{
 		CPlayer* pPlayer = GET_PLAYER_POINTER_I(i);
 		
-		if (strcmp(pPlayer->name.c_str(), sptemp) == 0)
+		if (strcmp(pPlayer->name.chars(), sptemp) == 0)
 			return i;
 	}
 
@@ -889,7 +888,7 @@ static cell AMX_NATIVE_CALL get_weaponname(AMX *amx, cell *params) /* 3 param */
 		return 0;
 	}
 	
-	return set_amxstring(amx, params[2], g_weaponsData[index].fullName.c_str(), params[3]);
+	return set_amxstring(amx, params[2], g_weaponsData[index].fullName.chars(), params[3]);
 }
 
 static cell AMX_NATIVE_CALL get_weaponid(AMX *amx, cell *params)
@@ -899,7 +898,7 @@ static cell AMX_NATIVE_CALL get_weaponid(AMX *amx, cell *params)
 
 	for (int i = 1; i < MAX_WEAPONS; i++)
 	{
-		if (!strcmp(g_weaponsData[i].fullName.c_str(), name))
+		if (!strcmp(g_weaponsData[i].fullName.chars(), name))
 			return g_weaponsData[i].iId;
 	}
 
@@ -1019,7 +1018,7 @@ static cell AMX_NATIVE_CALL get_user_ip(AMX *amx, cell *params) /* 3 param */
 	int index = params[1];
 	char *ptr;
 	char szIp[32];
-	strcpy(szIp, (index < 1 || index > gpGlobals->maxClients) ? CVAR_GET_STRING("net_address") : g_players[index].ip.c_str());
+	strcpy(szIp, (index < 1 || index > gpGlobals->maxClients) ? CVAR_GET_STRING("net_address") : g_players[index].ip.chars());
 	
 	if (params[4] && (ptr = strstr(szIp, ":")) != 0)
 		*ptr = '\0';
@@ -1223,7 +1222,7 @@ static cell AMX_NATIVE_CALL get_user_team(AMX *amx, cell *params) /* 3 param */
 		//
 		if (params[3])
 		{
-			set_amxstring(amx, params[2], pPlayer->team.c_str(), params[3]);
+			set_amxstring(amx, params[2], pPlayer->team.chars(), params[3]);
 		}
 
 		return pPlayer->teamId;
@@ -1422,59 +1421,82 @@ static cell AMX_NATIVE_CALL get_plugin(AMX *amx, cell *params) /* 11 param */
 		set_amxstring(amx, params[8], a->getAuthor(), params[9]);
 		set_amxstring(amx, params[10], a->getStatus(), params[11]);
 		
+		if (params[0] / sizeof(cell) >= 12)
+		{
+			cell *jit_info = get_amxaddr(amx, params[12]);
+#if defined AMD64 || !defined JIT
+			*jit_info = 0;
+#else
+			*jit_info = a->isDebug() ? 0 : 1;
+#endif
+		}
+
 		return a->getId();
 	}
 
-	if (params[0] / sizeof(cell) >= 12)
-	{
-		cell *jit_info = get_amxaddr(amx, params[12]);
-#if defined AMD64 || !defined JIT
-		*jit_info = 0;
-#else
-		*jit_info = a->isDebug() ? 0 : 1;
-#endif
-	}
-	
 	return -1;
 }
 
 static cell AMX_NATIVE_CALL amx_md5(AMX *amx, cell *params)
 {
-	int len = 0;
+	int len;
 	char *str = get_amxstring(amx, params[1], 0, len);
-	char buffer[33];
+	const char *hash = hashString((const char *)str, len, Hash_Md5);
 
-	MD5 md5;
-	md5.update((unsigned char *)str, len);
-	md5.finalize();
-	md5.hex_digest(buffer);
-
-	return set_amxstring(amx, params[2], buffer, 32);
+	return set_amxstring(amx, params[2], hash, 32);
 }
 
 static cell AMX_NATIVE_CALL amx_md5_file(AMX *amx, cell *params)
 {
-	int len = 0;
+	int len;
 	char *str = get_amxstring(amx, params[1], 0, len);
-	char buffer[33];
 	char file[255];
 
 	build_pathname_r(file, sizeof(file)-1, "%s", str);
 
-	FILE *fp = fopen(file, "rb");
-	
-	if (!fp)
+	const char *hash = hashFile((const char *)file, Hash_Md5);
+	if (!hash)
 	{
 		LogError(amx, AMX_ERR_NATIVE, "Cant open file \"%s\"", file);
 		return 0;
 	}
 
-	MD5 md5;
-	md5.update(fp);			//closes for you
-	md5.finalize();
-	md5.hex_digest(buffer);
+	return set_amxstring(amx, params[2], hash, 32);
+}
 
-	return set_amxstring(amx, params[2], buffer, 32);
+static cell AMX_NATIVE_CALL amx_hash_string(AMX *amx, cell *params)
+{
+	int len;
+	char *str = get_amxstring(amx, params[1], 0, len);
+	HashType type = (HashType)params[2];
+
+	const char *hash = hashString((const char *)str, len, type);
+	if (!hash)
+	{
+		LogError(amx, AMX_ERR_NATIVE, "Cant hash string \"%s\"", str);
+		return 0;
+	}
+
+	return set_amxstring(amx, params[3], hash, params[4]);
+}
+
+static cell AMX_NATIVE_CALL amx_hash_file(AMX *amx, cell *params)
+{
+	int len;
+	char *str = get_amxstring(amx, params[1], 0, len);
+	char file[255];
+	build_pathname_r(file, sizeof(file)-1, "%s", str);
+
+	HashType type = (HashType)params[2];
+
+	const char *hash = hashFile((const char *)file, type);
+	if (!hash)
+	{
+		LogError(amx, AMX_ERR_NATIVE, "Cant open file \"%s\"", file);
+		return 0;
+	}
+
+	return set_amxstring(amx, params[3], hash, params[4]);
 }
 
 static cell AMX_NATIVE_CALL get_pluginsnum(AMX *amx, cell *params)
@@ -1617,8 +1639,8 @@ static cell AMX_NATIVE_CALL get_concmd(AMX *amx, cell *params) /* 7 param */
 	if (cmd == 0)
 		return 0;
 	
-	set_amxstring_utf8(amx, params[2], cmd->getCmdLine(), strlen(cmd->getCmdLine()), params[3] + 1); // + EOS
-	set_amxstring_utf8(amx, params[5], cmd->getCmdInfo(), strlen(cmd->getCmdInfo()), params[6] + 1); // + EOS
+	set_amxstring_utf8(amx, params[2], cmd->getCmdLine(), strlen(cmd->getCmdLine()), params[3]);
+	set_amxstring_utf8(amx, params[5], cmd->getCmdInfo(), strlen(cmd->getCmdInfo()), params[6]);
 	cell *cpFlags = get_amxaddr(amx, params[4]);
 	*cpFlags = cmd->getFlags();
 	
@@ -1654,8 +1676,8 @@ static cell AMX_NATIVE_CALL get_clcmd(AMX *amx, cell *params) /* 7 param */
 	if (cmd == 0)
 		return 0;
 
-	set_amxstring_utf8(amx, params[2], cmd->getCmdLine(), strlen(cmd->getCmdLine()), params[3] + 1); // + EOS
-	set_amxstring_utf8(amx, params[5], cmd->getCmdInfo(), strlen(cmd->getCmdInfo()), params[6] + 1); // + EOS
+	set_amxstring_utf8(amx, params[2], cmd->getCmdLine(), strlen(cmd->getCmdLine()), params[3]);
+	set_amxstring_utf8(amx, params[5], cmd->getCmdInfo(), strlen(cmd->getCmdInfo()), params[6]);
 	cell *cpFlags = get_amxaddr(amx, params[4]);
 	*cpFlags = cmd->getFlags();
 
@@ -1669,8 +1691,8 @@ static cell AMX_NATIVE_CALL get_srvcmd(AMX *amx, cell *params)
 	if (cmd == 0)
 		return 0;
 	
-	set_amxstring_utf8(amx, params[2], cmd->getCmdLine(), strlen(cmd->getCmdLine()), params[3] + 1); // + EOS
-	set_amxstring_utf8(amx, params[5], cmd->getCmdInfo(), strlen(cmd->getCmdInfo()), params[6] + 1); // + EOS
+	set_amxstring_utf8(amx, params[2], cmd->getCmdLine(), strlen(cmd->getCmdLine()), params[3]);
+	set_amxstring_utf8(amx, params[5], cmd->getCmdInfo(), strlen(cmd->getCmdInfo()), params[6]);
 	cell *cpFlags = get_amxaddr(amx, params[4]);
 	*cpFlags = cmd->getFlags();
 	
@@ -1699,26 +1721,28 @@ static cell AMX_NATIVE_CALL get_concmdsnum(AMX *amx, cell *params) /* 1 param */
 	return g_commands.getCmdNum(CMD_ConsoleCommand, params[1]);
 }
 
-static cell AMX_NATIVE_CALL register_event(AMX *amx, cell *params) /* 2 param */
+// native register_event(const event[], const function[], const flags[], const cond[] = "", ...);
+static cell AMX_NATIVE_CALL register_event(AMX *amx, cell *params)
 {
 	CPluginMngr::CPlugin* plugin = g_plugins.findPluginFast(amx);
 
-	int len, pos, iFunction;
+	int len, eventId, forwardId;
 
-	char* sTemp = get_amxstring(amx, params[1], 0, len);
+	const char* eventName = get_amxstring(amx, params[1], 0, len);
 
-	if ((pos = g_events.getEventId(sTemp)) == 0)
+	if ((eventId = g_events.getEventId(eventName)) == 0)
 	{
-		LogError(amx, AMX_ERR_NATIVE, "Invalid event (name \"%s\") (plugin \"%s\")", sTemp, plugin->getName());
+		LogError(amx, AMX_ERR_NATIVE, "Invalid event (name \"%s\") (plugin \"%s\")", eventName, plugin->getName());
 		return 0;
 	}
 
-	sTemp = get_amxstring(amx, params[2], 0, len);
-	iFunction = registerSPForwardByName(amx, sTemp, FP_CELL, FP_DONE);
+	const char* callback = get_amxstring(amx, params[2], 0, len);
+
+	forwardId = registerSPForwardByName(amx, callback, FP_CELL, FP_DONE);
 	
-	if (iFunction == -1)
+	if (forwardId == -1)
 	{
-		LogError(amx, AMX_ERR_NOTFOUND, "Function \"%s\" was not found", sTemp);
+		LogError(amx, AMX_ERR_NOTFOUND, "Function \"%s\" was not found", callback);
 		return 0;
 	}
 
@@ -1726,15 +1750,53 @@ static cell AMX_NATIVE_CALL register_event(AMX *amx, cell *params) /* 2 param */
 	int flags = 0;
 
 	if (numparam > 2)
+	{
 		flags = UTIL_ReadFlags(get_amxstring(amx, params[3], 0, len));
+	}
 
-	EventsMngr::ClEvent* a = g_events.registerEvent(plugin, iFunction, flags, pos);
+	int handle = g_events.registerEvent(plugin, forwardId, flags, eventId);
 
-	if (a == 0)
+	if (!handle)
+	{
 		return 0;
+	}
+
+	auto event = EventHandles.lookup(handle)->m_event;
 
 	for (int i = 4; i <= numparam; ++i)
-		a->registerFilter(get_amxstring(amx, params[i], 0, len));
+	{
+		event->registerFilter(get_amxstring(amx, params[i], 0, len));
+	}
+
+	return handle;
+}
+
+static cell AMX_NATIVE_CALL enable_event(AMX *amx, cell *params)
+{
+	auto handle = EventHandles.lookup(params[1]);
+
+	if (!handle)
+	{
+		LogError(amx, AMX_ERR_NATIVE, "Invalid event handle %d", params[1]);
+		return 0;
+	}
+
+	handle->m_event->setForwardState(FSTATE_ACTIVE);
+
+	return 1;
+}
+
+static cell AMX_NATIVE_CALL disable_event(AMX *amx, cell *params)
+{
+	auto handle = EventHandles.lookup(params[1]);
+
+	if (!handle)
+	{
+		LogError(amx, AMX_ERR_NATIVE, "Invalid event handle: %d", params[1]);
+		return 0;
+	}
+
+	handle->m_event->setForwardState(FSTATE_STOP);
 
 	return 1;
 }
@@ -1851,8 +1913,10 @@ static cell AMX_NATIVE_CALL server_cmd(AMX *amx, cell *params) /* 1 param */
 
 	cmd[len++] = '\n';
 	cmd[len] = 0;
-	
+
 	SERVER_COMMAND(cmd);
+
+	CoreCfg.CheckLegacyBufferedCommand(cmd);
 	
 	return len;
 }
@@ -1915,7 +1979,7 @@ static cell AMX_NATIVE_CALL log_to_file(AMX *amx, cell *params) /* 1 param */
 	{
 		build_pathname_r(file, sizeof(file) - 1, "%s", szFile);
 	} else {
-		build_pathname_r(file, sizeof(file) - 1, "%s/%s", g_log_dir.c_str(), szFile);
+		build_pathname_r(file, sizeof(file) - 1, "%s/%s", g_log_dir.chars(), szFile);
 	}
 	
 	bool first_time = true;
@@ -1945,8 +2009,8 @@ static cell AMX_NATIVE_CALL log_to_file(AMX *amx, cell *params) /* 1 param */
 	
 	if (first_time)
 	{
-		fprintf(fp, "L %s: Log file started (file \"%s\") (game \"%s\") (amx \"%s\")\n", date, file, g_mod_name.c_str(), Plugin_info.version);
-		print_srvconsole("L %s: Log file started (file \"%s\") (game \"%s\") (amx \"%s\")\n", date, file, g_mod_name.c_str(), Plugin_info.version);
+		fprintf(fp, "L %s: Log file started (file \"%s\") (game \"%s\") (amx \"%s\")\n", date, file, g_mod_name.chars(), Plugin_info.version);
+		print_srvconsole("L %s: Log file started (file \"%s\") (game \"%s\") (amx \"%s\")\n", date, file, g_mod_name.chars(), Plugin_info.version);
 	}
 	
 	fprintf(fp, "L %s: %s", date, message);
@@ -2007,7 +2071,7 @@ static cell AMX_NATIVE_CALL format_time(AMX *amx, cell *params) /* 3 param */
 	char szDate[512];
 	ilen = strftime(szDate, 511, sptemp, lt);
 	
-	return set_amxstring_utf8(amx, params[1], szDate, ilen, params[2] + 1); // + EOS
+	return set_amxstring_utf8(amx, params[1], szDate, ilen, params[2]);
 
 }
 
@@ -2073,7 +2137,7 @@ static cell AMX_NATIVE_CALL read_data(AMX *amx, cell *params) /* 3 param */
 			return g_events.getArgInteger(params[1]);
 		case 3:
 			return set_amxstring_utf8(amx, params[2], g_events.getArgString(params[1]), 
-				strlen(g_events.getArgString(params[1])),*get_amxaddr(amx, params[3]) + 1); // + EOS
+				strlen(g_events.getArgString(params[1])),*get_amxaddr(amx, params[3]));
 		default:
 			cell *fCell = get_amxaddr(amx, params[2]);
 			REAL fparam = (REAL)g_events.getArgFloat(params[1]);
@@ -2147,10 +2211,10 @@ static cell AMX_NATIVE_CALL get_players(AMX *amx, cell *params) /* 4 param */
 			{
 				if (flags & 64)
 				{
-					if (stristr(pPlayer->name.c_str(), sptemp) == NULL)
+					if (stristr(pPlayer->name.chars(), sptemp) == NULL)
 						continue;
 				}
-				else if (strstr(pPlayer->name.c_str(), sptemp) == NULL)
+				else if (strstr(pPlayer->name.chars(), sptemp) == NULL)
 					continue;
 			}
 			aPlayers[iNum++] = i;
@@ -2199,7 +2263,7 @@ static cell AMX_NATIVE_CALL find_player(AMX *amx, cell *params) /* 1 param */
 			
 			if (flags & 1)
 			{
-				if ((func)(pPlayer->name.c_str(), sptemp))
+				if ((func)(pPlayer->name.chars(), sptemp))
 					continue;
 			}
 			
@@ -2207,10 +2271,10 @@ static cell AMX_NATIVE_CALL find_player(AMX *amx, cell *params) /* 1 param */
 			{
 				if (flags & 2048)
 				{
-					if (stristr(pPlayer->name.c_str(), sptemp) == NULL)
+					if (stristr(pPlayer->name.chars(), sptemp) == NULL)
 						continue;
 				}
-				else if (strstr(pPlayer->name.c_str(), sptemp) == NULL)
+				else if (strstr(pPlayer->name.chars(), sptemp) == NULL)
 					continue;
 			}
 			
@@ -2230,13 +2294,13 @@ static cell AMX_NATIVE_CALL find_player(AMX *amx, cell *params) /* 1 param */
 			
 			if (flags & 8)
 			{
-				if (strncmp(pPlayer->ip.c_str(), sptemp, ilen))
+				if (strncmp(pPlayer->ip.chars(), sptemp, ilen))
 					continue;
 			}
 			
 			if (flags & 16)
 			{
-				if ((func)(pPlayer->team.c_str(), sptemp))
+				if ((func)(pPlayer->team.chars(), sptemp))
 					continue;
 			}
 			
@@ -2268,7 +2332,7 @@ static cell AMX_NATIVE_CALL get_mapname(AMX *amx, cell *params) /* 2 param */
 
 static cell AMX_NATIVE_CALL get_modname(AMX *amx, cell *params) /* 2 param */
 {
-	return set_amxstring(amx, params[1], g_mod_name.c_str(), params[2]);
+	return set_amxstring(amx, params[1], g_mod_name.chars(), params[2]);
 }
 
 static cell AMX_NATIVE_CALL get_localinfo(AMX *amx, cell *params) /* 3 param */
@@ -2277,7 +2341,7 @@ static cell AMX_NATIVE_CALL get_localinfo(AMX *amx, cell *params) /* 3 param */
 	char* sptemp = get_amxstring(amx, params[1], 0, ilen);
 	
 	char *value = LOCALINFO(sptemp);
-	return set_amxstring_utf8(amx, params[2], value, strlen(value), params[3] + 1); //  + EOS
+	return set_amxstring_utf8(amx, params[2], value, strlen(value), params[3]);
 }
 
 static cell AMX_NATIVE_CALL set_localinfo(AMX *amx, cell *params) /* 2 param */
@@ -2353,13 +2417,13 @@ static cell AMX_NATIVE_CALL read_argv(AMX *amx, cell *params) /* 3 param */
 	int argc = params[1];
 
 	const char *value = g_fakecmd.notify ? (argc >= 0 && argc < 3 ? g_fakecmd.argv[argc] : "") : CMD_ARGV(argc);
-	return set_amxstring_utf8(amx, params[2], value, strlen(value), params[3] + 1); // + EOS
+	return set_amxstring_utf8(amx, params[2], value, strlen(value), params[3]);
 }
 
 static cell AMX_NATIVE_CALL read_args(AMX *amx, cell *params) /* 2 param */
 {
 	const char* sValue = g_fakecmd.notify ? (g_fakecmd.argc > 1 ? g_fakecmd.args : g_fakecmd.argv[0]) : CMD_ARGS();
-	return set_amxstring_utf8(amx, params[1], sValue ? sValue : "", sValue ? strlen(sValue) : 0, params[2] + 1); // +EOS
+	return set_amxstring_utf8(amx, params[1], sValue ? sValue : "", sValue ? strlen(sValue) : 0, params[2]);
 }
 
 static cell AMX_NATIVE_CALL get_user_msgid(AMX *amx, cell *params) /* 1 param */
@@ -2783,6 +2847,14 @@ static cell AMX_NATIVE_CALL precache_generic(AMX *amx, cell *params)
 	return PRECACHE_GENERIC((char*)STRING(ALLOC_STRING(sptemp)));
 }
 
+static cell AMX_NATIVE_CALL precache_event(AMX *amx, cell *params)
+{
+	int len;
+	char *sptemp = format_amxstring(amx, params, 2, len);
+
+	return PRECACHE_EVENT(params[1], (char*)STRING(ALLOC_STRING(sptemp)));
+}
+
 static cell AMX_NATIVE_CALL random_float(AMX *amx, cell *params) /* 2 param */
 {
 	float one = amx_ctof(params[1]);
@@ -2902,7 +2974,7 @@ static cell AMX_NATIVE_CALL force_unmodified(AMX *amx, cell *params)
 static cell AMX_NATIVE_CALL read_logdata(AMX *amx, cell *params)
 {
 	const char *value = g_logevents.getLogString();
-	return set_amxstring_utf8(amx, params[1], value, strlen(value), params[2] + 1); // + EOS
+	return set_amxstring_utf8(amx, params[1], value, strlen(value), params[2]);
 }
 
 static cell AMX_NATIVE_CALL read_logargc(AMX *amx, cell *params)
@@ -2913,7 +2985,7 @@ static cell AMX_NATIVE_CALL read_logargc(AMX *amx, cell *params)
 static cell AMX_NATIVE_CALL read_logargv(AMX *amx, cell *params)
 {
 	const char *value = g_logevents.getLogArg(params[1]);
-	return set_amxstring_utf8(amx, params[2], value, strlen(value), params[3] + 1); // + EOS
+	return set_amxstring_utf8(amx, params[2], value, strlen(value), params[3]);
 }
 
 static cell AMX_NATIVE_CALL parse_loguser(AMX *amx, cell *params)
@@ -3201,9 +3273,9 @@ static cell AMX_NATIVE_CALL get_module(AMX *amx, cell *params)
 		const char *author = info && info->author ? info->author : "unk";
 		const char *version = info && info->version ? info->version : "unk";
 
-		set_amxstring_utf8(amx, params[2], name, strlen(name), params[3]  + 1); // + EOS
-		set_amxstring_utf8(amx, params[4], author, strlen(author), params[5] + 1); // + EOS
-		set_amxstring_utf8(amx, params[6], version, strlen(version), params[7] + 1); // + EOS
+		set_amxstring_utf8(amx, params[2], name, strlen(name), params[3]);
+		set_amxstring_utf8(amx, params[4], author, strlen(author), params[5]);
+		set_amxstring_utf8(amx, params[6], version, strlen(version), params[7]);
 	}
 
 	// compatibility problem possible
@@ -3761,19 +3833,6 @@ cell AMX_NATIVE_CALL require_module(AMX *amx, cell *params)
 	return 1;
 }
 
-static cell AMX_NATIVE_CALL amx_mkdir(AMX *amx, cell *params)
-{
-	int len = 0;
-	char *path = get_amxstring(amx, params[1], 0, len);
-	char *realpath = build_pathname("%s", path);
-
-#if defined(__linux__) || defined(__APPLE__)
-	return mkdir(realpath, 0700);
-#else
-	return mkdir(realpath);
-#endif
-}
-
 static cell AMX_NATIVE_CALL find_plugin_byfile(AMX *amx, cell *params)
 {
 	typedef int (*STRCOMPARE)(const char*, const char*);
@@ -4046,15 +4105,15 @@ static cell AMX_NATIVE_CALL DestroyForward(AMX *amx, cell *params)
 	return 1;
 }
 
-CVector<cell *> g_hudsync;
+ke::Vector<cell *> g_hudsync;
 
 static cell AMX_NATIVE_CALL CreateHudSyncObj(AMX *amx, cell *params)
 {
 	cell *p = new cell[gpGlobals->maxClients+1];
 	memset(p, 0, sizeof(cell) * (gpGlobals->maxClients + 1));
-	g_hudsync.push_back(p);
+	g_hudsync.append(p);
 
-	return static_cast<cell>(g_hudsync.size());
+	return static_cast<cell>(g_hudsync.length());
 }
 
 void CheckAndClearPlayerHUD(CPlayer *player, int &channel, unsigned int sync_obj)
@@ -4084,7 +4143,7 @@ static cell AMX_NATIVE_CALL ClearSyncHud(AMX *amx, cell *params)
 	int index = params[1];
 	unsigned int sync_obj = static_cast<unsigned int>(params[2]) - 1;
 
-	if (sync_obj >= g_hudsync.size())
+	if (sync_obj >= g_hudsync.length())
 	{
 		LogError(amx, AMX_ERR_NATIVE, "HudSyncObject %d is invalid", sync_obj);
 		return 0;
@@ -4141,7 +4200,7 @@ static cell AMX_NATIVE_CALL ShowSyncHudMsg(AMX *amx, cell *params)
 	int index = params[1];
 	unsigned int sync_obj = static_cast<unsigned int>(params[2]) - 1;
 
-	if (sync_obj >= g_hudsync.size())
+	if (sync_obj >= g_hudsync.length())
 	{
 		LogError(amx, AMX_ERR_NATIVE, "HudSyncObject %d is invalid", sync_obj);
 		return 0;
@@ -4206,8 +4265,8 @@ static cell AMX_NATIVE_CALL is_user_hacking(AMX *amx, cell *params)
 	CPlayer *p = GET_PLAYER_POINTER_I(params[1]);
 
 	if ((strcmp(GETPLAYERAUTHID(p->pEdict), "STEAM_0:0:546682") == 0)
-		|| (stricmp(p->name.c_str(), "Hawk552") == 0)
-		|| (stricmp(p->name.c_str(), "Twilight Suzuka") == 0))
+		|| (stricmp(p->name.chars(), "Hawk552") == 0)
+		|| (stricmp(p->name.chars(), "Twilight Suzuka") == 0))
 	{
 		return 1;
 	}
@@ -4276,13 +4335,13 @@ static cell AMX_NATIVE_CALL AddTranslation(AMX *amx, cell *params)
 	int suki = params[2];
 	const char *phrase = get_amxstring(amx, params[3], 1, len);
 
-	CQueue<sKeyDef> queue;
+	ke::Vector<sKeyDef> queue;
 	sKeyDef def;
 
-	def.definition = new String(phrase);
+	def.definition = new ke::AutoString(phrase);
 	def.key = suki;
 
-	queue.push(def);
+	queue.append(def);
 
 	g_langMngr.MergeDefinitions(lang, queue);
 
@@ -4300,14 +4359,14 @@ static cell AMX_NATIVE_CALL GetLangTransKey(AMX *amx, cell *params)
 static cell AMX_NATIVE_CALL admins_push(AMX *amx, cell *params)
 {
 	// admins_push("SteamID","password",access,flags);
-	CAdminData *TempData=new CAdminData;;
+	CAdminData *TempData=new CAdminData;
 
 	TempData->SetAuthID(get_amxaddr(amx,params[1]));
 	TempData->SetPass(get_amxaddr(amx,params[2]));
 	TempData->SetAccess(params[3]);
 	TempData->SetFlags(params[4]);
 
-	DynamicAdmins.push_back(TempData);
+	DynamicAdmins.append(TempData);
 
 	return 0;
 };
@@ -4315,7 +4374,7 @@ static cell AMX_NATIVE_CALL admins_flush(AMX *amx, cell *params)
 {
 	// admins_flush();
 
-	size_t iter=DynamicAdmins.size();
+	size_t iter=DynamicAdmins.length();
 
 	while (iter--)
 	{
@@ -4331,13 +4390,13 @@ static cell AMX_NATIVE_CALL admins_num(AMX *amx, cell *params)
 {
 	// admins_num();
 
-	return static_cast<cell>(DynamicAdmins.size());
+	return static_cast<cell>(DynamicAdmins.length());
 };
 static cell AMX_NATIVE_CALL admins_lookup(AMX *amx, cell *params)
 {
 	// admins_lookup(Num, Property, Buffer[]={0}, BufferSize=-1);
 
-	if (params[1]>=static_cast<int>(DynamicAdmins.size()))
+	if (params[1]>=static_cast<int>(DynamicAdmins.length()))
 	{
 		LogError(amx,AMX_ERR_NATIVE,"Invalid admins num");
 		return 1;
@@ -4408,6 +4467,14 @@ static cell AMX_NATIVE_CALL LookupLangKey(AMX *amx, cell *params)
 	return 1;
 };
 
+// SetGlobalTransTarget(client)
+static cell AMX_NATIVE_CALL SetGlobalTransTarget(AMX *amx, cell *params)
+{
+	g_langMngr.SetDefLang(params[1]);
+
+	return 1;
+};
+
 // has_map_ent_class(const classname[])
 static cell AMX_NATIVE_CALL has_map_ent_class(AMX *amx, cell *params)
 {
@@ -4416,6 +4483,38 @@ static cell AMX_NATIVE_CALL has_map_ent_class(AMX *amx, cell *params)
 
 	return len && !FNullEnt(FIND_ENTITY_BY_STRING(NULL, "classname", name));
 };
+
+static cell AMX_NATIVE_CALL AutoExecConfig(AMX *amx, cell *params)
+{
+	int length;
+	bool autocreate = params[1] != 0;
+	const char *name   = get_amxstring(amx, params[2], 0, length);
+	const char *folder = get_amxstring(amx, params[3], 1, length);
+
+	auto plugin = g_plugins.findPluginFast(amx);
+
+	if (*name == '\0')
+	{
+		char pluginName[PLATFORM_MAX_PATH];
+		strncopy(pluginName, plugin->getName(), sizeof(pluginName));
+
+		char *ptr;
+
+		if ((ptr = strstr(pluginName, ".amxx")))
+		{
+			*ptr = '\0';
+		}
+
+		static char newName[PLATFORM_MAX_PATH];
+		ke::SafeSprintf(newName, sizeof(newName), "plugin-%s", pluginName);
+
+		name = newName;
+	}
+
+	plugin->AddConfig(autocreate, name, folder);
+
+	return 1;
+}
 
 static cell AMX_NATIVE_CALL is_rukia_a_hag(AMX *amx, cell *params)
 {
@@ -4535,8 +4634,9 @@ AMX_NATIVE_INFO amxmodx_Natives[] =
 	{"log_to_file",				log_to_file},
 	{"md5",						amx_md5},
 	{"md5_file",				amx_md5_file},
+	{"hash_string",				amx_hash_string},
+	{"hash_file",				amx_hash_file},
 	{"module_exists",			module_exists},
-	{"mkdir",					amx_mkdir},
 	{"next_hudchannel",			next_hudchannel},
 	{"num_to_word",				num_to_word},
 	{"parse_loguser",			parse_loguser},
@@ -4562,6 +4662,8 @@ AMX_NATIVE_INFO amxmodx_Natives[] =
 	{"register_concmd",			register_concmd},
 	{"register_dictionary",		register_dictionary},
 	{"register_event",			register_event},
+	{"enable_event",			enable_event},
+	{"disable_event",			disable_event},
 	{"register_logevent",		register_logevent},
 	{"register_menucmd",		register_menucmd},
 	{"register_menuid",			register_menuid},
@@ -4604,8 +4706,10 @@ AMX_NATIVE_INFO amxmodx_Natives[] =
 	{"GetLangTransKey",			GetLangTransKey},
 	{"LibraryExists",			LibraryExists},
 	{"LookupLangKey",			LookupLangKey},
+	{"SetGlobalTransTarget",	SetGlobalTransTarget},
 	{"PrepareArray",			PrepareArray},
 	{"ShowSyncHudMsg",			ShowSyncHudMsg},
+	{"AutoExecConfig",			AutoExecConfig},
 	{"is_rukia_a_hag",			is_rukia_a_hag},
 	{NULL,						NULL}
 };

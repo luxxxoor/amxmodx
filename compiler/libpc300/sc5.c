@@ -41,7 +41,7 @@
   #pragma warning(disable:4125)  /* decimal digit terminates octal escape sequence */
 #endif
 
-#include <sc5.scp>
+#include "sc5-in.scp"
 
 #if defined _MSC_VER
   #pragma warning(pop)
@@ -74,7 +74,6 @@ static int lastline,errorcount;
 static short lastfile;
   char *msg,*pre,*filename;
   va_list argptr;
-  char string[128];
   int is_warning;
 
   is_warning = (number >= 200 && !sc_warnings_are_errors);
@@ -115,8 +114,6 @@ static short lastfile;
     }
   } /* if */
 
-  strexpand(string,(unsigned char *)msg,sizeof string,SCPACK_TABLE);
-
  if (errline>0)
     errstart=errline;           /* forced error position, set single line destination */
   else
@@ -132,7 +129,7 @@ static short lastfile;
   va_start(argptr,number);
   if (strlen(errfname)==0) {
     int start= (errstart==errline) ? -1 : errstart;
-    if (pc_error((int)number,string,filename,start,errline,argptr)) {
+    if (pc_error((int)number,msg,filename,start,errline,argptr)) {
       if (outf!=NULL) {
         pc_closeasm(outf,TRUE);
         outf=NULL;
@@ -146,7 +143,7 @@ static short lastfile;
         fprintf(fp,"%s(%d -- %d) : %s %03d: ",filename,errstart,errline,pre,number);
       else
         fprintf(fp,"%s(%d) : %s %03d: ",filename,errline,pre,number);
-      vfprintf(fp,string,argptr);
+      vfprintf(fp,msg,argptr);
       fclose(fp);
     } /* if */
   } /* if */

@@ -18,6 +18,7 @@
 
 // config
 #include "moduleconfig.h"
+#include <IGameConfigs.h>
 
 #include <stddef.h> // size_t
 // metamod include files
@@ -2130,6 +2131,7 @@ typedef int				(*PFN_ADD_NEW_NATIVES)			(const AMX_NATIVE_INFO * /*list*/);
 typedef char *			(*PFN_BUILD_PATHNAME)			(const char * /*format*/, ...);
 typedef char *			(*PFN_BUILD_PATHNAME_R)			(char * /*buffer*/, size_t /* maxlen */, const char * /* format */, ...);
 typedef cell *			(*PFN_GET_AMXADDR)				(AMX * /*amx*/, cell /*offset*/);
+typedef cell *			(*PFN_GET_AMXVECTOR_NULL)		(AMX * /*amx*/, cell /*offset*/);
 typedef void			(*PFN_PRINT_SRVCONSOLE)			(const char * /*format*/, ...);
 typedef const char *	(*PFN_GET_MODNAME)				(void);
 typedef const char *	(*PFN_GET_AMXSCRIPTNAME)		(int /*id*/);
@@ -2140,6 +2142,7 @@ typedef int				(*PFN_SET_AMXSTRING)			(AMX * /*amx*/, cell /*amx_addr*/, const c
 typedef int				(*PFN_SET_AMXSTRING_UTF8_CHAR)	(AMX *amx, cell amx_addr, const char *source, size_t sourcelen, size_t maxlen);
 typedef int				(*PFN_SET_AMXSTRING_UTF8_CELL)	(AMX *amx, cell amx_addr, const cell *source, size_t sourcelen, size_t maxlen);
 typedef char *			(*PFN_GET_AMXSTRING)			(AMX * /*amx*/, cell /*amx_addr*/, int /*bufferId*/, int * /*pLen*/);
+typedef char *			(*PFN_GET_AMXSTRING_NULL)		(AMX * /*amx*/, cell /*amx_addr*/, int /*bufferId*/, int * /*pLen*/);
 typedef int				(*PFN_GET_AMXSTRINGLEN)			(const cell *ptr);
 typedef char *			(*PFN_FORMAT_AMXSTRING)			(AMX * /*amx*/, cell * /*params*/, int /*startParam*/, int * /*pLen*/);
 typedef void			(*PFN_COPY_AMXMEMORY)			(cell * /*dest*/, const cell * /*src*/, int /*len*/);
@@ -2215,12 +2218,14 @@ typedef const char *	(*PFN_GETLOCALINFO)				(const char * /*name*/, const char *
 typedef int				(*PFN_AMX_REREGISTER)			(AMX * /*amx*/, AMX_NATIVE_INFO * /*list*/, int /*list*/);
 typedef void *			(*PFN_REGISTERFUNCTIONEX)		(void * /*pfn*/, const char * /*desc*/);
 typedef void			(*PFN_MESSAGE_BLOCK)			(int /* mode */, int /* message */, int * /* opt */);
+typedef IGameConfigManager* (*PFN_GET_CONFIG_MANAGER)   ();
 
 extern PFN_ADD_NATIVES				g_fn_AddNatives;
 extern PFN_ADD_NEW_NATIVES			g_fn_AddNewNatives;
 extern PFN_BUILD_PATHNAME			g_fn_BuildPathname;
 extern PFN_BUILD_PATHNAME_R			g_fn_BuildPathnameR;
 extern PFN_GET_AMXADDR				g_fn_GetAmxAddr;
+extern PFN_GET_AMXVECTOR_NULL		g_fn_GetAmxVectorNull;
 extern PFN_PRINT_SRVCONSOLE			g_fn_PrintSrvConsole;
 extern PFN_GET_MODNAME				g_fn_GetModname;
 extern PFN_GET_AMXSCRIPTNAME		g_fn_GetAmxScriptName;
@@ -2231,6 +2236,7 @@ extern PFN_SET_AMXSTRING			g_fn_SetAmxString;
 extern PFN_SET_AMXSTRING_UTF8_CHAR	g_fn_SetAmxStringUTF8Char;
 extern PFN_SET_AMXSTRING_UTF8_CELL	g_fn_SetAmxStringUTF8Cell;
 extern PFN_GET_AMXSTRING			g_fn_GetAmxString;
+extern PFN_GET_AMXSTRING_NULL		g_fn_GetAmxStringNull;
 extern PFN_GET_AMXSTRINGLEN			g_fn_GetAmxStringLen;
 extern PFN_FORMAT_AMXSTRING			g_fn_FormatAmxString;
 extern PFN_COPY_AMXMEMORY			g_fn_CopyAmxMemory;
@@ -2293,6 +2299,7 @@ extern PFN_GETLOCALINFO				g_fn_GetLocalInfo;
 extern PFN_AMX_REREGISTER			g_fn_AmxReRegister;
 extern PFN_REGISTERFUNCTIONEX		g_fn_RegisterFunctionEx;
 extern PFN_MESSAGE_BLOCK			g_fn_MessageBlock;
+extern PFN_GET_CONFIG_MANAGER		g_fn_GetConfigManager;
 
 #ifdef MAY_NEVER_BE_DEFINED
 // Function prototypes for intellisense and similar systems
@@ -2302,6 +2309,7 @@ int				MF_AddNewNatives			(const AMX_NATIVE_INFO *list) { }
 char *			MF_BuildPathname			(const char * format, ...) { }
 char *			MF_BuildPathnameR			(char *buffer, size_t maxlen, const char *fmt, ...) { }
 cell *			MF_GetAmxAddr				(AMX * amx, cell offset) { }
+cell *			MF_GetAmxVectorNull			(AMX * amx, cell offset) { }
 void			MF_PrintSrvConsole			(char * format, ...) { }
 const char *	MF_GetModname				(void) { }
 const char *	MF_GetScriptName			(int id) { }
@@ -2312,6 +2320,7 @@ int				MF_SetAmxString				(AMX * amx, cell amx_addr, const char *  source , int 
 int				MF_SetAmxStringUTF8Char		(AMX *amx, cell amx_addr, const char *source, size_t sourcelen, size_t maxlen) { }
 int				MF_SetAmxStringUTF8Cell		(AMX *amx, cell amx_addr, const cell *source, size_t sourcelen, size_t maxlen) { }
 char *			MF_GetAmxString				(AMX * amx, cell amx_addr, int bufferId, int * pLen) { }
+char *			MF_GetAmxStringNull			(AMX * amx, cell amx_addr, int bufferId, int * pLen) { }
 int				MF_GetAmxStringLen			(const cell *ptr) { }
 char *			MF_FormatAmxString			(AMX * amx, cell * params, int startParam, int * pLen) { }
 void			MF_CopyAmxMemory			(cell * dest, const cell * src, int len) { }
@@ -2368,6 +2377,7 @@ const char *	MF_GetLocalInfo				(const char *name, const char *def) { }
 int				MF_AmxReRegister			(AMX *amx, AMX_NATIVE_INFO *list, int number) { return 0; }
 void *			MF_RegisterFunctionEx		(void *pfn, const char *description) { }
 void *			MF_MessageBlock				(int mode, int msg, int *opt) { }
+IGameConfigManager* MF_GetConfigManager     (void) { }
 #endif	// MAY_NEVER_BE_DEFINED
 
 #define MF_AddNatives g_fn_AddNatives
@@ -2376,6 +2386,7 @@ void *			MF_MessageBlock				(int mode, int msg, int *opt) { }
 #define MF_BuildPathnameR g_fn_BuildPathnameR
 #define MF_FormatAmxString g_fn_FormatAmxString
 #define MF_GetAmxAddr g_fn_GetAmxAddr
+#define MF_GetAmxVectorNull g_fn_GetAmxVectorNull
 #define MF_PrintSrvConsole g_fn_PrintSrvConsole
 #define MF_GetModname g_fn_GetModname
 #define MF_GetScriptName g_fn_GetAmxScriptName
@@ -2386,6 +2397,7 @@ void *			MF_MessageBlock				(int mode, int msg, int *opt) { }
 #define MF_SetAmxStringUTF8Char g_fn_SetAmxStringUTF8Char
 #define MF_SetAmxStringUTF8Cell g_fn_SetAmxStringUTF8Cell
 #define MF_GetAmxString g_fn_GetAmxString
+#define MF_GetAmxStringNull g_fn_GetAmxStringNull
 #define MF_GetAmxStringLen g_fn_GetAmxStringLen
 #define MF_CopyAmxMemory g_fn_CopyAmxMemory
 void MF_Log(const char *fmt, ...);
@@ -2448,6 +2460,7 @@ void MF_LogError(AMX *amx, int err, const char *fmt, ...);
 #define MF_AmxReRegister g_fn_AmxReRegister
 #define MF_RegisterFunctionEx g_fn_RegisterFunctionEx
 #define MF_MessageBlock g_fn_MessageBlock
+#define MF_GetConfigManager g_fn_GetConfigManager
 
 #ifdef MEMORY_TEST
 /*** Memory ***/
@@ -2495,6 +2508,6 @@ void	Mem_Deallocator(const char *sourceFile, const unsigned int sourceLine, cons
 
 #endif //MEMORY_TEST
 
-size_t UTIL_Format(char *buffer, size_t maxlength, const char *fmt, ...);
+template <typename D, typename S> unsigned int strncopy(D *dest, const S *src, size_t count);
 
 #endif // #ifndef __AMXXMODULE_H__

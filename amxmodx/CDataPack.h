@@ -8,7 +8,7 @@
  * This program is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License, version 3.0, as published by the
  * Free Software Foundation.
- * 
+ *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
@@ -31,6 +31,7 @@
 #define _INCLUDE_SOURCEMOD_CDATAPACK_H_
 
 #include "amxmodx.h"
+#include "natives_handles.h"
 
 /**
  * @brief Contains functions for packing data abstractly to/from plugins.
@@ -79,7 +80,7 @@ public:
 	/**
 	 * @brief Returns whether or not a specified number of bytes from the current stream
 	 *  position to the end can be read.
-	 * 
+	 *
 	 * @param bytes		Number of bytes to simulate reading.
 	 * @return			True if can be read, false otherwise.
 	 */
@@ -107,6 +108,11 @@ public:
 	 * @return			Pointer to the data, or NULL if out of bounds.
 	 */
 	void *ReadMemory(size_t *size) const;
+
+	bool CanReadCell() const;
+	bool CanReadFloat() const;
+	bool CanReadString(size_t *len) const;
+	bool CanReadMemory(size_t *size) const;
 
 public:
 	/**
@@ -160,83 +166,16 @@ private:
 	mutable char *m_curptr;
 	size_t m_capacity;
 	size_t m_size;
+
+	enum DataPackType {
+		Raw,
+		Cell,
+		Float,
+		String,
+	};
 };
 
-class CDataPackHandles
-{
-private:
-	CVector<CDataPack *> m_packs;
-
-public:
-	CDataPackHandles() {}
-	~CDataPackHandles()
-	{
-		this->clear();
-	}
-
-	void clear()
-	{
-		for (size_t i = 0; i < m_packs.size(); i++)
-		{
-			if (m_packs[i] != NULL)
-			{
-				delete m_packs[i];
-			}
-		}
-
-		m_packs.clear();
-	}
-
-	CDataPack *lookup(int handle)
-	{
-		handle--;
-
-		if (handle < 0 || handle >= static_cast<int>(m_packs.size()))
-		{
-			return NULL;
-		}
-
-		return m_packs[handle];
-	}
-
-	int create()
-	{
-		for (size_t i = 0; i < m_packs.size(); ++i)
-		{
-			if (m_packs[i] == NULL)
-			{
-				// reuse handle
-				m_packs[i] = new CDataPack;
-
-				return static_cast<int>(i) + 1;
-			}
-		}
-		m_packs.push_back(new CDataPack);
-		return m_packs.size();
-	}
-
-	bool destroy(int handle)
-	{
-		handle--;
-
-		if (handle < 0 || handle >= static_cast<int>(m_packs.size()))
-		{
-			return false;
-		}
-
-		if (m_packs[handle] == NULL)
-		{
-			return false;
-		}
-
-		delete m_packs[handle];
-		m_packs[handle] = NULL;
-
-		return true;
-	}
-};
-
-extern CDataPackHandles g_DataPackHandles;
+extern NativeHandle<CDataPack> DataPackHandles;
 extern AMX_NATIVE_INFO g_DatapackNatives[];
 
 #endif //_INCLUDE_SOURCEMOD_CDATAPACK_H_

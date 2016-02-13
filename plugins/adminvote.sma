@@ -129,7 +129,7 @@ public checkVotes()
 	new votesNum = g_voteCount[0] + g_voteCount[1] + g_voteCount[2] + g_voteCount[3]
 	new iRatio = votesNum ? floatround(g_voteRatio * float(votesNum), floatround_ceil) : 1
 	new iResult = g_voteCount[best]
-	new players[32], pnum, i
+	new players[MAX_PLAYERS], pnum, i
 	
 	get_players(players, pnum, "c")
 	
@@ -449,7 +449,7 @@ public cmdVoteKickBan(id, level, cid)
 	
 	if (voteban && is_user_bot(player))
 	{
-		new imname[32]
+		new imname[MAX_NAME_LENGTH]
 		
 		get_user_name(player, imname, charsmax(imname))
 		console_print(id, "%L", id, "ACTION_PERFORMED", imname)
@@ -459,11 +459,11 @@ public cmdVoteKickBan(id, level, cid)
 	new keys = MENU_KEY_1|MENU_KEY_2
 	new menu_msg[256], lYes[16], lNo[16], lKickBan[16]
 	
-	format(lYes, charsmax(lYes), "%L", LANG_SERVER, "YES")
+	format(lYes, charsmax(lYes), "%L", LANG_SERVER, "YES") 
 	format(lNo, charsmax(lNo), "%L", LANG_SERVER, "NO")
 	format(lKickBan, charsmax(lKickBan), "%L", LANG_SERVER, voteban ? "BAN" : "KICK")
 	ucfirst(lKickBan)
-	get_user_name(player, arg, 31)
+	get_user_name(player, arg, charsmax(arg))
 	format(menu_msg, charsmax(menu_msg), g_coloredMenus ? "\y%s %s?\w^n^n1.  %s^n2.  %s" : "%s %s?^n^n1.  %s^n2.  %s", lKickBan, arg, lYes, lNo)
 	g_yesNoVote = 1
 	

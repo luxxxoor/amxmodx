@@ -29,13 +29,15 @@
 	#endif
 #endif
 
-#include "md5.h"
-#include "CVector.h"
+#include "hashing.h"
 #include "CList.h"
 #include "CQueue.h"
 #include "modules.h"
-#include "CString.h"
 #include "CPlugin.h"
+#include "CLibrarySys.h"
+#include <auto-string.h>
+#include <amtl/am-string.h>
+#include <amtl/am-vector.h>
 #include "CMisc.h"
 #include "CVault.h"
 #include "CModule.h"
@@ -48,6 +50,9 @@
 #include "fakemeta.h"
 #include "amxxlog.h"
 #include "CvarManager.h"
+#include "CoreConfig.h"
+#include <amxmodx_version.h>
+#include <HLTypeConversion.h>
 
 #define AMXXLOG_Log g_log.Log
 #define AMXXLOG_Error g_log.LogError
@@ -67,6 +72,7 @@ extern AMX_NATIVE_INFO g_DataStructNatives[];
 extern AMX_NATIVE_INFO g_StackNatives[];
 extern AMX_NATIVE_INFO g_TextParserNatives[];
 extern AMX_NATIVE_INFO g_CvarNatives[];
+extern AMX_NATIVE_INFO g_GameConfigNatives[];
 
 #if defined(_WIN32)
 #define DLLOAD(path) (DLHANDLE)LoadLibrary(path)
@@ -134,8 +140,8 @@ template <typename D, typename S> unsigned int strncopy(D *dest, const S *src, s
 unsigned int UTIL_GetUTF8CharBytes(const char *stream);
 unsigned int UTIL_ReplaceAll(char *subject, size_t maxlength, const char *search, const char *replace, bool caseSensitive);
 char *UTIL_ReplaceEx(char *subject, size_t maxLen, const char *search, size_t searchLen, const char *replace, size_t replaceLen, bool caseSensitive);
-char *UTIL_VarArgs(const char *fmt, ...);
-size_t UTIL_Format(char *buffer, size_t maxlength, const char *fmt, ...);
+void UTIL_TrimLeft(char *buffer);
+void UTIL_TrimRight(char *buffer);
 
 #define GET_PLAYER_POINTER(e)   (&g_players[ENTINDEX(e)])
 //#define GET_PLAYER_POINTER(e)   (&g_players[(((int)e-g_edict_point)/sizeof(edict_t))])
@@ -143,7 +149,7 @@ size_t UTIL_Format(char *buffer, size_t maxlength, const char *fmt, ...);
 
 struct WeaponsVault
 {
-	String fullName;
+	ke::AString fullName;
 	short int iId;
 	short int ammoSlot;
 };
@@ -173,8 +179,8 @@ extern EventsMngr g_events;
 extern Grenades g_grenades;
 extern LogEventsMngr g_logevents;
 extern CLangMngr g_langMngr;
-extern String g_log_dir;
-extern String g_mod_name;
+extern ke::AString g_log_dir;
+extern ke::AString g_mod_name;
 extern TeamIds g_teamsIds;
 extern Vault g_vault;
 extern CForwardMngr g_forwards;
@@ -276,6 +282,8 @@ char* format_amxstring(AMX *amx, cell *params, int parm, int& len);
 AMX* get_amxscript(int, void**, const char**);
 const char* get_amxscriptname(AMX* amx);
 char* get_amxstring(AMX *amx, cell amx_addr, int id, int& len);
+char* get_amxstring_null(AMX *amx, cell amx_addr, int id, int& len);
+cell* get_amxvector_null(AMX *amx, cell amx_addr);
 extern "C" size_t get_amxstring_r(AMX *amx, cell amx_addr, char *destination, int maxlen);
 
 int amxstring_len(cell* cstr);
@@ -361,5 +369,6 @@ enum PrintColor
 };
 
 extern enginefuncs_t *g_pEngTable;
+extern HLTypeConversion TypeConversion;
 
 #endif // AMXMODX_H

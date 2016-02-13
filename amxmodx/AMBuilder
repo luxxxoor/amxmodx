@@ -32,13 +32,7 @@ elif builder.target_platform == 'windows':
   ]
 
 binary.compiler.linkflags += jit_objects
-
-if builder.target_platform == 'linux':
-  binary.compiler.linkflags += [binary.Dep('zlib/libz.a')]
-elif builder.target_platform == 'mac':
-  binary.compiler.linkflags += [binary.Dep('zlib/libz-darwin.a')]
-elif builder.target_platform == 'windows':
-  binary.compiler.linkflags += [binary.Dep('zlib\\zlib.lib')]
+binary.compiler.linkflags += [AMXX.zlib.binary, AMXX.hashing.binary]
 
 if builder.target_platform == 'mac':
   binary.compiler.postlink += [
@@ -47,7 +41,6 @@ if builder.target_platform == 'mac':
 
 binary.sources = [
   'meta_api.cpp',
-  'CFile.cpp',
   'CVault.cpp',
   'vault.cpp',
   'float.cpp',
@@ -69,7 +62,6 @@ binary.sources = [
   'fakemeta.cpp',
   'amxxfile.cpp',
   'CLang.cpp',
-  'md5.cpp',
   'emsg.cpp',
   'CForward.cpp',
   'CPlugin.cpp',
@@ -98,8 +90,13 @@ binary.sources = [
   'textparse.cpp',
   'CvarManager.cpp',
   'cvars.cpp',
+  '../public/memtools/MemoryUtils.cpp',
   '../public/memtools/CDetour/detours.cpp',
   '../public/memtools/CDetour/asm/asm.c',
+  'CLibrarySys.cpp',
+  'CGameConfigs.cpp',
+  'gameconfigs.cpp',
+  'CoreConfig.cpp',
 ]
 
 if builder.target_platform == 'windows':

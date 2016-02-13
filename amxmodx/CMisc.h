@@ -30,13 +30,14 @@ class CPlayer
 public:
 	edict_t* pEdict;
 	
-	String name;
-	String ip;
-	String team;
+	ke::AString name;
+	ke::AString ip;
+	ke::AString team;
 
 	bool initialized;
 	bool ingame;
 	bool authorized;
+	bool disconnecting;
 	bool vgui;
 	bool teamIdsInitialized;
 
@@ -63,7 +64,7 @@ public:
 	int death_killer;
 	int death_victim;
 	bool death_tk;
-	String death_weapon;
+	ke::AString death_weapon;
 	int newmenu;
 	int page;
 
@@ -138,7 +139,7 @@ public:
 
 class ForceObject
 {
-	String filename;
+	ke::AString filename;
 	FORCE_TYPE type;
 	Vector mins;
 	Vector maxs;
@@ -146,7 +147,7 @@ class ForceObject
 public:
 	ForceObject(const char* n, FORCE_TYPE c, Vector& mi, Vector& ma, AMX* a) : filename(n), type(c), mins(mi), maxs(ma), amx(a) {}
 
-	inline const char* getFilename() { return filename.c_str(); }
+	inline const char* getFilename() { return filename.chars(); }
 	inline AMX* getAMX() { return amx; }
 	
 	Vector& getMin() { return mins; }
@@ -203,14 +204,14 @@ public:
 
 class CScript
 {
-	String filename;
+	ke::AString filename;
 	AMX* amx;
 	void* code;
 public:
 	CScript(AMX* aa, void* cc, const char* ff) : filename(ff), amx(aa), code(cc) {}
 	
 	inline AMX* getAMX() { return amx; }
-	inline const char* getName() { return filename.c_str(); }
+	inline const char* getName() { return filename.chars(); }
 	inline bool operator==(void* a) { return (amx == (AMX*)a); }
 	inline void* getCode() { return code; }
 };
@@ -223,7 +224,7 @@ class TeamIds
 {
 	struct TeamEle
 	{
-		String name;
+		ke::AString name;
 		int id;
 		char tid;
 		static char uid;

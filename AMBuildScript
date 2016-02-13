@@ -15,6 +15,8 @@ class AMXXConfig(object):
     self.mysql_path = None
     self.generated_headers = []
     self.versionlib = None
+    self.zlib = None
+    self.hashing = None
     self.csx_app = None
     self.stdcxx_path = None
 
@@ -152,7 +154,7 @@ class AMXXConfig(object):
         if (have_gcc and cxx.version >= '4.7') or (have_clang and cxx.version >= '3'):
           cfg.cxxflags += ['-Wno-delete-non-virtual-dtor']
         if have_gcc and cxx.version >= '4.8':
-          cfg.cflags += ['-Wno-unused-result']
+          cfg.cflags += ['-Wno-unused-result', '-Wno-error=sign-compare']
       if have_clang:
         cfg.cxxflags += ['-Wno-implicit-exception-spec-mismatch']
         if cxx.version >= 'apple-clang-5.1' or cxx.version >= 'clang-3.4':
@@ -160,9 +162,12 @@ class AMXXConfig(object):
         else:
           cfg.cxxflags += ['-Wno-deprecated']
         cfg.cflags += ['-Wno-sometimes-uninitialized']
-
+        if builder.target_platform == 'linux' and cxx.version >= '3.6':
+          cfg.cxxflags += ['-Wno-inconsistent-missing-override']
+          
       if have_gcc:
         cfg.cflags += ['-Wno-parentheses']
+        cfg.c_only_flags += ['-std=c99']
       elif have_clang:
         cfg.cflags += ['-Wno-logical-op-parentheses']
 
@@ -230,7 +235,7 @@ class AMXXConfig(object):
     # Platform-specifics
     if builder.target_platform == 'linux':
       cfg.defines += ['_LINUX', 'POSIX', 'LINUX']
-      cfg.postlink += ['-ldl']
+      cfg.postlink += ['-ldl', '-lm']
       if cxx.name == 'gcc':
         cfg.postlink += ['-static-libgcc']
       elif cxx.name == 'clang':
@@ -267,7 +272,11 @@ class AMXXConfig(object):
     cfg.includes += [os.path.join(builder.sourcePath, 'public')]
     cfg.includes += [os.path.join(builder.sourcePath, 'public', 'sdk')]
     cfg.includes += [os.path.join(builder.sourcePath, 'public', 'amtl')]
+    cfg.includes += [os.path.join(builder.sourcePath, 'public', 'amtl', 'amtl')]
     cfg.includes += [os.path.join(builder.sourcePath, 'public', 'memtools')]
+    cfg.includes += [os.path.join(builder.sourcePath, 'third_party')]
+    cfg.includes += [os.path.join(builder.sourcePath, 'third_party', 'hashing')]
+    cfg.includes += [os.path.join(builder.sourcePath, 'third_party', 'zlib')]
     return
 
   #
@@ -355,36 +364,44 @@ if AMXX.use_auto_versioning():
     { 'AMXX': AMXX }
   )
 
+AMXX.zlib = builder.RunScript(
+  'third_party/zlib/AMBuilder'
+)
+
+AMXX.hashing = builder.RunScript(
+  'third_party/hashing/AMBuilder'
+)
+  
 builder.RunBuildScripts(
   [
     'amxmodx/AMBuilder',
     'compiler/amxxpc/AMBuilder',
     'compiler/libpc300/AMBuilder',
-    'dlls/cstrike/cstrike/AMBuilder',
-    'dlls/cstrike/csx/AMBuilder',
-    'dlls/dod/dodfun/AMBuilder',
-    'dlls/dod/dodx/AMBuilder',
-    'dlls/engine/AMBuilder',
-    'dlls/fakemeta/AMBuilder',
-    'dlls/fun/AMBuilder',
-    'dlls/geoip/AMBuilder',
-    'dlls/hamsandwich/AMBuilder',
-    'dlls/mysqlx/AMBuilder',
-    'dlls/ns/AMBuilder',
-    'dlls/nvault/AMBuilder',
-    'dlls/regex/AMBuilder',
-    'dlls/sockets/AMBuilder',
-    'dlls/sqlite/AMBuilder',
-    'dlls/tfcx/AMBuilder',
-    'dlls/ts/tsfun/AMBuilder',
-    'dlls/ts/tsx/AMBuilder',
+    'modules/cstrike/cstrike/AMBuilder',
+    'modules/cstrike/csx/AMBuilder',
+    'modules/dod/dodfun/AMBuilder',
+    'modules/dod/dodx/AMBuilder',
+    'modules/engine/AMBuilder',
+    'modules/fakemeta/AMBuilder',
+    'modules/fun/AMBuilder',
+    'modules/geoip/AMBuilder',
+    'modules/hamsandwich/AMBuilder',
+    'modules/mysqlx/AMBuilder',
+    'modules/ns/AMBuilder',
+    'modules/nvault/AMBuilder',
+    'modules/regex/AMBuilder',
+    'modules/sockets/AMBuilder',
+    'modules/sqlite/AMBuilder',
+    'modules/tfcx/AMBuilder',
+    'modules/ts/tsfun/AMBuilder',
+    'modules/ts/tsx/AMBuilder',
   ],
   { 'AMXX': AMXX }
 )
 
 # The csstats.dat reader is Windows-only.
 if builder.target_platform == 'windows':
-  builder.RunScript('dlls/cstrike/csx/WinCSX/AMBuilder', { 'AMXX': AMXX })
+  builder.RunScript('modules/cstrike/csx/WinCSX/AMBuilder', { 'AMXX': AMXX })
 
 if builder.backend == 'amb2':
   builder.RunBuildScripts([

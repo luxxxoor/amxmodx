@@ -8,13 +8,6 @@
 //     https://alliedmods.net/amxmodx-license
 
 #include <time.h>
-
-#if defined WIN32
-#include <direct.h>
-#else
-#include <dirent.h>
-#endif
-
 #include "amxmodx.h"
 #include "fakemeta.h"
 #include "CMenu.h"
@@ -32,6 +25,13 @@
 #include "CDataPack.h"
 #include "textparse.h"
 #include "CvarManager.h"
+#include "CLibrarySys.h"
+#include "CFileSystem.h"
+#include "gameconfigs.h"
+#include "CGameConfigs.h"
+#include <engine_strucs.h>
+#include <CDetour/detours.h>
+#include "CoreConfig.h"
 
 plugin_info_t Plugin_info = 
 {
@@ -59,7 +59,7 @@ void (*function)(void*);
 void (*endfunction)(void*);
 
 extern List<AUTHORIZEFUNC> g_auth_funcs;
-extern CVector<CAdminData *> DynamicAdmins;
+extern ke::Vector<CAdminData *> DynamicAdmins;
 
 CLog g_log;
 CForwardMngr g_forwards;
@@ -78,8 +78,8 @@ Grenades g_grenades;
 LogEventsMngr g_logevents;
 MenuMngr g_menucmds;
 CLangMngr g_langMngr;
-String g_log_dir;
-String g_mod_name;
+ke::AString g_log_dir;
+ke::AString g_mod_name;
 XVars g_xvars;
 
 bool g_bmod_tfc;
@@ -104,7 +104,7 @@ bool g_NewDLL_Available = false;
 #ifdef MEMORY_TEST
 	float g_next_memreport_time;
 	unsigned int g_memreport_count;
-	String g_memreport_dir;
+	ke::AString g_memreport_dir;
 	bool g_memreport_enabled;
 	#define MEMREPORT_INTERVAL 300.0f	/* 5 mins */
 #endif // MEMORY_TEST
@@ -115,6 +115,8 @@ int g_players_num;
 int mPlayerIndex;
 int mState;
 int g_srvindex;
+
+CDetour *DropClientDetour;
 
 cvar_t init_amxmodx_version = {"amxmodx_version", "", FCVAR_SERVER | FCVAR_SPONLY};
 cvar_t init_amxmodx_modules = {"amxmodx_modules", "", FCVAR_SPONLY};
@@ -132,6 +134,7 @@ cvar_t* mp_timelimit = NULL;
 int FF_ClientCommand = -1;
 int FF_ClientConnect = -1;
 int FF_ClientDisconnect = -1;
+int FF_ClientDisconnected = -1;
 int FF_ClientInfoChanged = -1;
 int FF_ClientPutInServer = -1;
 int FF_PluginInit = -1;
@@ -143,21 +146,24 @@ int FF_InconsistentFile = -1;
 int FF_ClientAuthorized = -1;
 int FF_ChangeLevel = -1;
 
-bool ColoredMenus(String & ModName)
+IFileSystem* g_FileSystem;
+HLTypeConversion TypeConversion;
+
+bool ColoredMenus(const char *ModName)
 {
 	const char * pModNames[] = { "cstrike", "czero", "dmc", "dod", "tfc", "valve" };
 	const size_t ModsCount = sizeof(pModNames) / sizeof(const char *);
 
 	for (size_t i = 0; i < ModsCount; ++i)
 	{
-		if (ModName.compare(pModNames[i]) == 0)
+		if (strcmp(ModName, pModNames[i]) == 0)
 			return true; // this game modification currently supports colored menus	
 	}
 
 	return false; // no colored menus are supported for this game modification
 }
 
-void ParseAndOrAdd(CStack<String *> & files, const char *name)
+void ParseAndOrAdd(CStack<ke::AString *> & files, const char *name)
 {
 	if (strncmp(name, "plugins-", 8) == 0)
 	{
@@ -166,7 +172,7 @@ void ParseAndOrAdd(CStack<String *> & files, const char *name)
 		if (strcmp(&name[len-4], ".ini") == 0)
 		{
 #endif
-			String *pString = new String(name);
+			ke::AString *pString = new ke::AString(name);
 			files.push(pString);
 #if !defined WIN32
 		}
@@ -174,7 +180,7 @@ void ParseAndOrAdd(CStack<String *> & files, const char *name)
 	}
 }
 
-void BuildPluginFileList(const char *initialdir, CStack<String *> & files)
+void BuildPluginFileList(const char *initialdir, CStack<ke::AString *> & files)
 {
 	char path[255];
 #if defined WIN32
@@ -215,15 +221,15 @@ void BuildPluginFileList(const char *initialdir, CStack<String *> & files)
 //Loads a plugin list into the Plugin Cache and Load Modules cache
 void LoadExtraPluginsToPCALM(const char *initialdir)
 {
-	CStack<String *> files;
+	CStack<ke::AString *> files;
 	BuildPluginFileList(initialdir, files);
 	char path[255];
 	while (!files.empty())
 	{
-		String *pString = files.front();
-		UTIL_Format(path, sizeof(path)-1, "%s/%s", 
+		ke::AString *pString = files.front();
+		ke::SafeSprintf(path, sizeof(path), "%s/%s",
 			initialdir,
-			pString->c_str());
+			pString->chars());
 		g_plugins.CALMFromFile(path);
 		delete pString;
 		files.pop();
@@ -232,15 +238,15 @@ void LoadExtraPluginsToPCALM(const char *initialdir)
 
 void LoadExtraPluginsFromDir(const char *initialdir)
 {
-	CStack<String *> files;
+	CStack<ke::AString *> files;
 	char path[255];
 	BuildPluginFileList(initialdir, files);
 	while (!files.empty())
 	{
-		String *pString = files.front();
-		UTIL_Format(path, sizeof(path)-1, "%s/%s", 
+		ke::AString *pString = files.front();
+		ke::SafeSprintf(path, sizeof(path), "%s/%s",
 			initialdir,
-			pString->c_str());
+			pString->chars());
 		g_plugins.loadPluginsFromFile(path);
 		delete pString;
 		files.pop();
@@ -327,7 +333,7 @@ const char*	get_localinfo_r(const char *name, const char *def, char buffer[], si
 		SET_LOCALINFO((char*)name, (char*)(b = def));
 	}
 
-	UTIL_Format(buffer, maxlength, "%s", b);
+	ke::SafeSprintf(buffer, maxlength, "%s", b);
 
 	return buffer;
 }
@@ -401,16 +407,12 @@ int	C_Spawn(edict_t *pent)
 
 	FlagMan.LoadFile();
 
-	for (unsigned int i=0; i<VectorHolder.length(); i++)
-	{
-		delete VectorHolder[i];
-	};
-	VectorHolder.clear();
-
-	g_TrieHandles.clear();
-	g_TrieSnapshotHandles.clear();
-	g_DataPackHandles.clear();
-	g_TextParsersHandles.clear();
+	ArrayHandles.clear();
+	TrieHandles.clear();
+	TrieSnapshotHandles.clear();
+	DataPackHandles.clear();
+	TextParsersHandles.clear();
+	GameConfigHandle.clear();
 
 	char map_pluginsfile_path[256];
 	char prefixed_map_pluginsfile[256];
@@ -424,7 +426,7 @@ int	C_Spawn(edict_t *pent)
 	LoadExtraPluginsToPCALM(configs_dir);
 	char temporaryMap[64], *tmap_ptr;
 
-	UTIL_Format(temporaryMap, sizeof(temporaryMap), "%s", STRING(gpGlobals->mapname));
+	ke::SafeSprintf(temporaryMap, sizeof(temporaryMap), "%s", STRING(gpGlobals->mapname));
 
 	prefixed_map_pluginsfile[0] = '\0';
 	if ((tmap_ptr = strchr(temporaryMap, '_')) != NULL)
@@ -432,7 +434,7 @@ int	C_Spawn(edict_t *pent)
 		// this map has a prefix
 
 		*tmap_ptr = '\0';
-		UTIL_Format(prefixed_map_pluginsfile, 
+		ke::SafeSprintf(prefixed_map_pluginsfile,
 			sizeof(prefixed_map_pluginsfile),
 			"%s/maps/plugins-%s.ini",
 			configs_dir,
@@ -440,7 +442,7 @@ int	C_Spawn(edict_t *pent)
 		g_plugins.CALMFromFile(prefixed_map_pluginsfile);
 	}
 
-	UTIL_Format(map_pluginsfile_path, 
+	ke::SafeSprintf(map_pluginsfile_path,
 		sizeof(map_pluginsfile_path),
 		"%s/maps/plugins-%s.ini",
 		configs_dir,
@@ -493,6 +495,7 @@ int	C_Spawn(edict_t *pent)
 	FF_ClientCommand = registerForward("client_command", ET_STOP, FP_CELL, FP_DONE);
 	FF_ClientConnect = registerForward("client_connect", ET_IGNORE, FP_CELL, FP_DONE);
 	FF_ClientDisconnect = registerForward("client_disconnect", ET_IGNORE, FP_CELL, FP_DONE);
+	FF_ClientDisconnected = registerForward("client_disconnected", ET_IGNORE, FP_CELL, FP_CELL, FP_ARRAY, FP_CELL, FP_DONE);
 	FF_ClientInfoChanged = registerForward("client_infochanged", ET_IGNORE, FP_CELL, FP_DONE);
 	FF_ClientPutInServer = registerForward("client_putinserver", ET_IGNORE, FP_CELL, FP_DONE);
 	FF_PluginCfg = registerForward("plugin_cfg", ET_IGNORE, FP_DONE);
@@ -502,6 +505,8 @@ int	C_Spawn(edict_t *pent)
 	FF_InconsistentFile = registerForward("inconsistent_file", ET_STOP, FP_CELL, FP_STRING, FP_STRINGEX, FP_DONE);
 	FF_ClientAuthorized = registerForward("client_authorized", ET_IGNORE, FP_CELL, FP_DONE);
 	FF_ChangeLevel = registerForward("server_changelevel", ET_STOP, FP_STRING, FP_DONE);
+
+	CoreCfg.OnAmxxInitialized();
 
 #if defined BINLOG_ENABLED
 	if (!g_BinLog.Open())
@@ -513,6 +518,8 @@ int	C_Spawn(edict_t *pent)
 #endif
 
 	modules_callPluginsLoaded();
+
+	TypeConversion.init();
 
 	// ###### Call precache forward function
 	g_dontprecache = false;
@@ -627,6 +634,11 @@ void C_ServerActivate_Post(edict_t *pEdictList, int edictCount, int clientMax)
 	executeForwards(FF_PluginInit);
 	executeForwards(FF_PluginCfg);
 
+	CoreCfg.ExecuteMainConfig();    // Execute amxx.cfg
+	CoreCfg.ExecuteAutoConfigs();   // Execute configs created with AutoExecConfig native.
+	CoreCfg.SetMapConfigTimer(6.1); // Prepare per-map configs to be executed 6.1 seconds later.
+	                                // Original value which was used in admin.sma.
+
 	// Correct time in Counter-Strike and other mods (except DOD)
 	if (!g_bmod_dod)
 		g_game_timeleft = 0;
@@ -654,8 +666,17 @@ void C_ServerDeactivate()
 	for (int i = 1; i <= gpGlobals->maxClients; ++i)
 	{
 		CPlayer	*pPlayer = GET_PLAYER_POINTER_I(i);
+
 		if (pPlayer->initialized)
+		{
+			// deprecated
 			executeForwards(FF_ClientDisconnect, static_cast<cell>(pPlayer->index));
+
+			if (DropClientDetour && !pPlayer->disconnecting)
+			{
+				executeForwards(FF_ClientDisconnected, static_cast<cell>(pPlayer->index), FALSE, prepareCharArray(const_cast<char*>(""), 0), 0);
+			}
+		}
 
 		if (pPlayer->ingame)
 		{
@@ -670,7 +691,7 @@ void C_ServerDeactivate()
 	RETURN_META(MRES_IGNORED);
 }
 
-extern CVector<cell *> g_hudsync;
+extern ke::Vector<cell *> g_hudsync;
 
 // After all clear whole AMX configuration
 // However leave AMX modules which are loaded only once
@@ -682,6 +703,9 @@ void C_ServerDeactivate_Post()
 	modules_callPluginsUnloading();
 	
 	detachReloadModules();
+
+	CoreCfg.Clear();
+
 	g_auth.clear();
 	g_commands.clear();
 	g_forcemodels.clear();
@@ -706,13 +730,13 @@ void C_ServerDeactivate_Post()
 	ClearMessages();
 	
 	// Flush the dynamic admins list
-	for (size_t iter=DynamicAdmins.size();iter--; )
+	for (size_t iter=DynamicAdmins.length();iter--; )
 	{
 		delete DynamicAdmins[iter];
 	}
 
 	DynamicAdmins.clear();
-	for (unsigned int i=0; i<g_hudsync.size(); i++)
+	for (unsigned int i=0; i<g_hudsync.length(); i++)
 		delete [] g_hudsync[i];
 	g_hudsync.clear();
 
@@ -739,10 +763,10 @@ void C_ServerDeactivate_Post()
 				char buffer[256];
 				sprintf(buffer, "%s/memreports/D%02d%02d%03d", get_localinfo("amxx_basedir", "addons/amxmodx"), curTime->tm_mon + 1, curTime->tm_mday, i);
 #if defined(__linux__) || defined(__APPLE__)
-				mkdir(build_pathname("%s", g_log_dir.c_str()), 0700);
+				mkdir(build_pathname("%s", g_log_dir.chars()), 0700);
 				if (mkdir(build_pathname(buffer), 0700) < 0)
 #else
-				mkdir(build_pathname("%s", g_log_dir.c_str()));
+				mkdir(build_pathname("%s", g_log_dir.chars()));
 				if (mkdir(build_pathname(buffer)) < 0)
 #endif
 				{
@@ -758,15 +782,15 @@ void C_ServerDeactivate_Post()
 						break;
 					}
 				}
-				g_memreport_dir.assign(buffer);
+				g_memreport_dir = buffer;
 				
 				// g_memreport_dir should be valid now
 				break;
 			}
 		}
 		
-		m_dumpMemoryReport(build_pathname("%s/r%03d.txt", g_memreport_dir.c_str(), g_memreport_count));
-		AMXXLOG_Log("Memreport #%d created (file \"%s/r%03d.txt\") (interval %f)", g_memreport_count + 1, g_memreport_dir.c_str(), g_memreport_count, MEMREPORT_INTERVAL);
+		m_dumpMemoryReport(build_pathname("%s/r%03d.txt", g_memreport_dir.chars(), g_memreport_count));
+		AMXXLOG_Log("Memreport #%d created (file \"%s/r%03d.txt\") (interval %f)", g_memreport_count + 1, g_memreport_dir.chars(), g_memreport_count, MEMREPORT_INTERVAL);
 		
 		g_memreport_count++;
 	}
@@ -817,16 +841,57 @@ BOOL C_ClientConnect_Post(edict_t *pEntity, const char *pszName, const char *psz
 void C_ClientDisconnect(edict_t *pEntity)
 {
 	CPlayer *pPlayer = GET_PLAYER_POINTER(pEntity);
+
 	if (pPlayer->initialized)
+	{
+		// deprecated
 		executeForwards(FF_ClientDisconnect, static_cast<cell>(pPlayer->index));
+		
+		if (DropClientDetour && !pPlayer->disconnecting)
+		{
+			executeForwards(FF_ClientDisconnected, static_cast<cell>(pPlayer->index), FALSE, prepareCharArray(const_cast<char*>(""), 0), 0);
+		}
+	}
 
 	if (pPlayer->ingame)
 	{
 		--g_players_num;
 	}
+
 	pPlayer->Disconnect();
 
 	RETURN_META(MRES_IGNORED);
+}
+
+// void SV_DropClient(client_t *cl, qboolean crash, const char *fmt, ...);
+DETOUR_DECL_STATIC3_VAR(SV_DropClient, void, client_t*, cl, qboolean, crash, const char*, format)
+{
+	char buffer[1024];
+
+	va_list ap;
+	va_start(ap, format);
+	ke::SafeVsprintf(buffer, sizeof(buffer) - 1, format, ap);
+	va_end(ap);
+
+	CPlayer *pPlayer;
+
+	if (cl->edict)
+	{
+		pPlayer = GET_PLAYER_POINTER(cl->edict);
+
+		if (pPlayer->initialized)
+		{
+			pPlayer->disconnecting = true;
+			executeForwards(FF_ClientDisconnected, pPlayer->index, TRUE, prepareCharArray(buffer, sizeof(buffer), true), sizeof(buffer) - 1);
+		}
+	}
+
+	DETOUR_STATIC_CALL(SV_DropClient)(cl, crash, "%s", buffer);
+
+	if (cl->edict)
+	{
+		pPlayer->Disconnect();
+	}
 }
 
 void C_ClientPutInServer_Post(edict_t *pEntity)
@@ -851,7 +916,7 @@ void C_ClientUserInfoChanged_Post(edict_t *pEntity, char *infobuffer)
 	// Emulate bot connection and putinserver
 	if (pPlayer->ingame)
 	{
-		pPlayer->name.assign(name);			//	Make sure player have name up to date
+		pPlayer->name =name;			//	Make sure player have name up to date
 	} else if (pPlayer->IsBot()) {
 		pPlayer->Connect(name, "127.0.0.1"/*CVAR_GET_STRING("net_address")*/);
 
@@ -1098,10 +1163,10 @@ void C_StartFrame_Post(void)
 				char buffer[256];
 				sprintf(buffer, "%s/memreports/D%02d%02d%03d", get_localinfo("amxx_basedir", "addons/amxmodx"), curTime->tm_mon + 1, curTime->tm_mday, i);
 #if defined(__linux__) || defined(__APPLE__)
-				mkdir(build_pathname("%s", g_log_dir.c_str()), 0700);
+				mkdir(build_pathname("%s", g_log_dir.chars()), 0700);
 				if (mkdir(build_pathname(buffer), 0700) < 0)
 #else
-				mkdir(build_pathname("%s", g_log_dir.c_str()));
+				mkdir(build_pathname("%s", g_log_dir.chars()));
 				if (mkdir(build_pathname(buffer)) < 0)
 #endif
 				{
@@ -1117,14 +1182,14 @@ void C_StartFrame_Post(void)
 						break;
 					}
 				}
-				g_memreport_dir.assign(buffer);
+				g_memreport_dir = buffer;
 				// g_memreport_dir should be valid now
 				break;
 			}
 		}
 		
-		m_dumpMemoryReport(build_pathname("%s/r%03d.txt", g_memreport_dir.c_str(), g_memreport_count));
-		AMXXLOG_Log("Memreport #%d created (file \"%s/r%03d.txt\") (interval %f)", g_memreport_count + 1, g_memreport_dir.c_str(), g_memreport_count, MEMREPORT_INTERVAL);
+		m_dumpMemoryReport(build_pathname("%s/r%03d.txt", g_memreport_dir.chars(), g_memreport_count));
+		AMXXLOG_Log("Memreport #%d created (file \"%s/r%03d.txt\") (interval %f)", g_memreport_count + 1, g_memreport_dir.chars(), g_memreport_count, MEMREPORT_INTERVAL);
 		
 		g_memreport_count++;
 	}
@@ -1135,6 +1200,8 @@ void C_StartFrame_Post(void)
 
 	g_task_time = gpGlobals->time + 0.1f;
 	g_tasksMngr.startFrame();
+
+	CoreCfg.OnMapConfigTimer();
 
 	RETURN_META(MRES_IGNORED);
 }
@@ -1331,7 +1398,7 @@ void C_AlertMessage(ALERT_TYPE atype, const char *szFmt, ...)
 		RETURN_META(MRES_SUPERCEDE);
 	}
 
-    RETURN_META(MRES_IGNORED);
+	RETURN_META(MRES_IGNORED);
 }
 
 void C_ChangeLevel(const char *map, const char *what)
@@ -1455,12 +1522,12 @@ C_DLLEXPORT	int	Meta_Attach(PLUG_LOADTIME now, META_FUNCTIONS *pFunctionTable, m
 		if (gameDir[i++] ==	'/')
 			a = &gameDir[i];
 	
-	g_mod_name.assign(a);
+	g_mod_name = a;
 
-	g_coloredmenus = ColoredMenus(g_mod_name); // whether or not to use colored menus
+	g_coloredmenus = ColoredMenus(g_mod_name.chars()); // whether or not to use colored menus
 
 	// ###### Print short GPL
-	print_srvconsole("\n   AMX Mod X version %s Copyright (c) 2004-2014 AMX Mod X Development Team \n"
+	print_srvconsole("\n   AMX Mod X version %s Copyright (c) 2004-2015 AMX Mod X Development Team \n"
 					 "   AMX Mod X comes with ABSOLUTELY NO WARRANTY; for details type `amxx gpl'.\n", AMXX_VERSION);
 	print_srvconsole("   This is free software and you are welcome to redistribute it under \n"
 					 "   certain conditions; type 'amxx gpl' for details.\n  \n");
@@ -1475,14 +1542,15 @@ C_DLLEXPORT	int	Meta_Attach(PLUG_LOADTIME now, META_FUNCTIONS *pFunctionTable, m
 		
 		while (a != amx_config.end())
 		{
-			SET_LOCALINFO((char*)a.key().c_str(), (char*)a.value().c_str());
+			SET_LOCALINFO((char*)a.key().chars(), (char*)a.value().chars());
 			++a;
 		}
 		amx_config.clear();
 	}
 
 	// ###### Initialize logging here
-	g_log_dir.assign(get_localinfo("amxx_logs", "addons/amxmodx/logs"));
+	g_log_dir = get_localinfo("amxx_logs", "addons/amxmodx/logs");
+	g_log.SetLogType("amxx_logging");
 
 	// ###### Now attach metamod modules
 	// This will also call modules Meta_Query and Meta_Attach functions
@@ -1493,7 +1561,23 @@ C_DLLEXPORT	int	Meta_Attach(PLUG_LOADTIME now, META_FUNCTIONS *pFunctionTable, m
 	FlagMan.SetFile("cmdaccess.ini");
 
 	g_CvarManager.CreateCvarHook();
-	
+
+	ConfigManager.OnAmxxStartup();
+
+	void *address = nullptr;
+
+	if (CommonConfig && CommonConfig->GetMemSig("SV_DropClient", &address) && address)
+	{
+		DropClientDetour = DETOUR_CREATE_STATIC_FIXED(SV_DropClient, address);
+		DropClientDetour->EnableDetour();
+	}
+	else
+	{
+		AMXXLOG_Log("client_disconnected forward has been disabled - check your gamedata files.");
+	}
+
+	GET_IFACE<IFileSystem>("filesystem_stdio", g_FileSystem, FILESYSTEM_INTERFACE_VERSION);
+
 	return (TRUE);
 }
 
@@ -1536,6 +1620,11 @@ C_DLLEXPORT	int	Meta_Detach(PLUG_LOADTIME now, PL_UNLOAD_REASON	reason)
 
 	ClearLibraries(LibSource_Plugin);
 	ClearLibraries(LibSource_Module);
+
+	if (DropClientDetour)
+	{
+		DropClientDetour->Destroy();
+	}
 
 	return (TRUE);
 }
@@ -1656,14 +1745,14 @@ C_DLLEXPORT	int	GetEngineFunctions(enginefuncs_t *pengfuncsFromEngine, int *inte
 {
 	memset(&meta_engfuncs, 0, sizeof(enginefuncs_t));
 
-	if (stricmp(g_mod_name.c_str(), "cstrike") == 0 || stricmp(g_mod_name.c_str(), "czero") == 0)
+	if (stricmp(g_mod_name.chars(), "cstrike") == 0 || stricmp(g_mod_name.chars(), "czero") == 0)
 	{
 		meta_engfuncs.pfnSetModel =	C_SetModel;
 		g_bmod_cstrike = true;
 	} else {
 		g_bmod_cstrike = false;
-		g_bmod_dod = !stricmp(g_mod_name.c_str(), "dod");
-		g_bmod_tfc = !stricmp(g_mod_name.c_str(), "tfc");
+		g_bmod_dod = !stricmp(g_mod_name.chars(), "dod");
+		g_bmod_tfc = !stricmp(g_mod_name.chars(), "tfc");
 	}
 
 	meta_engfuncs.pfnCmd_Argc = C_Cmd_Argc;

@@ -28,7 +28,8 @@
  */
 
 #include "MemoryUtils.h"
-#include "amxxmodule.h"
+#include <stdio.h> // sscanf
+#include <stdarg.h> // va_start, etc.
 
 #if defined(__linux__)
 	#include <fcntl.h>
@@ -158,6 +159,13 @@ void *MemoryUtils::ResolveSymbol(void *handle, const char *symbol)
 	return GetProcAddress((HMODULE)handle, symbol);
 	
 #elif defined(__linux__)
+
+	void *addr = dlsym(handle, symbol);
+
+	if (addr)
+	{
+		return addr;
+	}
 
 	struct link_map *dlmap;
 	struct stat dlstat;
@@ -637,7 +645,7 @@ bool MemoryUtils::GetLibraryOfAddress(const void *libPtr, char *buffer, size_t m
 		return false;
 	}
 	const char *dllpath = info.dli_fname;
-	UTIL_Format(buffer, maxlength, "%s", dllpath);
+	Format(buffer, maxlength, "%s", dllpath);
 	if (base)
 	{
 		*base = (uintptr_t)info.dli_fbase;
@@ -701,4 +709,20 @@ size_t MemoryUtils::DecodeHexString(unsigned char *buffer, size_t maxlength, con
 	}
 
 	return written;
+}
+
+size_t MemoryUtils::Format(char *buffer, size_t maxlength, const char *fmt, ...)
+{
+	va_list ap;
+	va_start(ap, fmt);
+	size_t len = vsnprintf(buffer, maxlength, fmt, ap);
+	va_end(ap);
+
+	if (len >= maxlength)
+	{
+		buffer[maxlength - 1] = '\0';
+		return (maxlength - 1);
+	}
+
+	return len;
 }

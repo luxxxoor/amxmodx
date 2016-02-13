@@ -12,19 +12,17 @@
 //
 
 #if defined _sqlx_included
-  #endinput
+	#endinput
 #endif
 #define _sqlx_included
 
 //eh..
 #define SQL_NumRows SQL_NumResults
 
-#if AMXX_VERSION_NUM >= 175
- #pragma reqclass sqlx
- #if !defined AMXMODX_NOAUTOLOAD
-  #pragma defclasslib sqlx mysql
- #endif //!defined AMXMODX_NOAUTOLOAD
-#endif //AMXX_VERSION_NUM
+#pragma reqclass sqlx
+#if !defined AMXMODX_NOAUTOLOAD
+	#pragma defclasslib sqlx mysql
+#endif
 
 enum Handle
 {
@@ -69,7 +67,8 @@ native Handle:SQL_Connect(Handle:cn_tuple, &errcode, error[], maxlength);
  * 
  * If a connection tuple is supplied, this should be called before SQL_Connect or SQL_ThreadQuery.
  * Also note the change will remain until you call this function with another value.
- * 
+ * This native does nothing in SQLite. 
+ *
  * Example: "utf8", "latin1"
  *
  * @param h					Database or connection tuple Handle.
@@ -192,7 +191,7 @@ native SQL_IsNull(Handle:query, column);
  *  SQL_ReadResult(query, 1, num2)
  *  SQL_ReadResult(query, 2, str, 31)
  */
-native SQL_ReadResult(Handle:query, column, {Float,_}:...);
+native SQL_ReadResult(Handle:query, column, any:...);
 
 
 /**
@@ -393,6 +392,11 @@ stock Handle:SQL_MakeStdTuple(timeout = 0)
 	get_cvar_string("amx_sql_pass", pass, 31);
 	get_cvar_string("amx_sql_type", set_type, 11);
 	get_cvar_string("amx_sql_db", db, 127);
+
+	if (timeout <= 0)
+	{
+		timeout = get_cvar_num("amx_sql_timeout");
+	}
 	
 	SQL_GetAffinity(get_type, 12);
 	

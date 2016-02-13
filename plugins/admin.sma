@@ -32,7 +32,7 @@ new PLUGINNAME[] = "AMX Mod X"
 #define ADMIN_IPADDR	(1<<3)
 #define ADMIN_NAME		(1<<4)
 
-new bool:g_CaseSensitiveName[MAX_PLAYERS];
+new bool:g_CaseSensitiveName[MAX_PLAYERS + 1];
 
 // pcvars
 new amx_mode;
@@ -73,6 +73,7 @@ public plugin_init()
 	register_cvar("amx_sql_pass", "", FCVAR_PROTECTED)
 	register_cvar("amx_sql_db", "amx", FCVAR_PROTECTED)
 	register_cvar("amx_sql_type", "mysql", FCVAR_PROTECTED)
+	register_cvar("amx_sql_timeout", "60", FCVAR_PROTECTED)
 
 	register_concmd("amx_reloadadmins", "cmdReload", ADMIN_CFG)
 	register_concmd("amx_addadmin", "addadminfn", ADMIN_RCON, "<playername|auth> <accessflags> [password] [authtype] - add specified player as an admin to users.ini")
@@ -81,8 +82,7 @@ public plugin_init()
 
 	new configsDir[64]
 	get_configsdir(configsDir, charsmax(configsDir))
-	
-	server_cmd("exec %s/amxx.cfg", configsDir)	// Execute main configuration file
+
 	server_cmd("exec %s/sql.cfg", configsDir)
 
 	// Create a vector of 5 cells to store the info.
@@ -144,7 +144,7 @@ public addadminfn(id, level, cid)
 			player = cmd_target(id, arg, CMDTARGET_ALLOW_SELF | CMDTARGET_NO_BOTS)
 		} else {
 			new _steamid[44]
-			static _players[32], _num, _pv
+			static _players[MAX_PLAYERS], _num, _pv
 			get_players(_players, _num)
 			for (new _i=0; _i<_num; _i++)
 			{
@@ -351,45 +351,6 @@ AddAdmin(id, auth[], accessflags[], password[], flags[], comment[]="")
 #endif
 
 }
-public plugin_cfg()
-{
-	set_task(6.1, "delayed_load")
-}
-
-public delayed_load()
-{
-	new configFile[128], curMap[64], configDir[128]
-
-	get_configsdir(configDir, charsmax(configDir))
-	get_mapname(curMap, charsmax(curMap))
-
-	new i=0;
-	
-	while (curMap[i] != '_' && curMap[i++] != '^0') {/*do nothing*/}
-	
-	if (curMap[i]=='_')
-	{
-		// this map has a prefix
-		curMap[i]='^0';
-		formatex(configFile, charsmax(configFile), "%s/maps/prefix_%s.cfg", configDir, curMap);
-
-		if (file_exists(configFile))
-		{
-			server_cmd("exec %s", configFile);
-		}
-	}
-
-	get_mapname(curMap, charsmax(curMap))
-
-	
-	formatex(configFile, charsmax(configFile), "%s/maps/%s.cfg", configDir, curMap)
-
-	if (file_exists(configFile))
-	{
-		server_cmd("exec %s", configFile)
-	}
-	
-}
 
 loadSettings(szFilename[])
 {
@@ -582,7 +543,7 @@ public cmdReload(id, level, cid)
 	}
 #endif
 
-	new players[32], num, pv
+	new players[MAX_PLAYERS], num, pv
 	new name[MAX_NAME_LENGTH]
 	get_players(players, num)
 	for (new i=0; i<num; i++)
@@ -751,7 +712,7 @@ accessUser(id, name[] = "")
 {
 	remove_user_flags(id)
 	
-	new userip[32], userauthid[32], password[32], passfield[32], username[32]
+	new userip[32], userauthid[32], password[32], passfield[32], username[MAX_NAME_LENGTH]
 	
 	get_user_ip(id, userip, charsmax(userip), 1)
 	get_user_authid(id, userauthid, charsmax(userauthid))
@@ -772,7 +733,7 @@ accessUser(id, name[] = "")
 	
 	if (result & 1)
 	{
-		console_print(id, "* %L", id, "INV_PAS")
+		engclient_print(id, engprint_console, "* %L", id, "INV_PAS")
 	}
 	
 	if (result & 2)
@@ -783,12 +744,12 @@ accessUser(id, name[] = "")
 	
 	if (result & 4)
 	{
-		console_print(id, "* %L", id, "PAS_ACC")
+		engclient_print(id, engprint_console, "* %L", id, "PAS_ACC")
 	}
 	
 	if (result & 8)
 	{
-		console_print(id, "* %L", id, "PRIV_SET")
+		engclient_print(id, engprint_console, "* %L", id, "PRIV_SET")
 	}
 	
 	return PLUGIN_CONTINUE

@@ -34,6 +34,18 @@
     <Filter Include="Memtools\CDetour\asm">
       <UniqueIdentifier>{64a22cd4-3715-45de-8af2-e54017733be6}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Third Party">
+      <UniqueIdentifier>{080705f5-5e95-4251-a521-e1671b60a989}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Third Party\Zlib">
+      <UniqueIdentifier>{7cc6a54c-6244-43e9-85ac-c2fb76bd92bc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Third Party\Hashing">
+      <UniqueIdentifier>{06763df9-3070-414e-b666-080b079f4319}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Third Party\Hashing\hashers">
+      <UniqueIdentifier>{fb5fd616-bb2e-42f1-a113-a61eb9ead739}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\amx.cpp">
@@ -66,9 +78,6 @@
     <ClCompile Include="..\CEvent.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\CFile.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\CFlagManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -88,9 +97,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\CModule.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\CPlugin.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\CTask.cpp">
@@ -118,9 +124,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\libraries.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\md5.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\messages.cpp">
@@ -204,6 +207,90 @@
     <ClCompile Include="..\cvars.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\third_party\zlib\adler32.c">
+      <Filter>Third Party\Zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\zlib\compress.c">
+      <Filter>Third Party\Zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\zlib\crc32.c">
+      <Filter>Third Party\Zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\zlib\deflate.c">
+      <Filter>Third Party\Zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\zlib\gzclose.c">
+      <Filter>Third Party\Zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\zlib\gzlib.c">
+      <Filter>Third Party\Zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\zlib\gzread.c">
+      <Filter>Third Party\Zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\zlib\gzwrite.c">
+      <Filter>Third Party\Zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\zlib\infback.c">
+      <Filter>Third Party\Zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\zlib\inffast.c">
+      <Filter>Third Party\Zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\zlib\inflate.c">
+      <Filter>Third Party\Zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\zlib\inftrees.c">
+      <Filter>Third Party\Zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\zlib\trees.c">
+      <Filter>Third Party\Zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\zlib\uncompr.c">
+      <Filter>Third Party\Zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\zlib\zutil.c">
+      <Filter>Third Party\Zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\hashing\hashing.cpp">
+      <Filter>Third Party\Hashing</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\hashing\hashers\crc32.cpp">
+      <Filter>Third Party\Hashing\hashers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\hashing\hashers\keccak.cpp">
+      <Filter>Third Party\Hashing\hashers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\hashing\hashers\md5.cpp">
+      <Filter>Third Party\Hashing\hashers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\hashing\hashers\sha1.cpp">
+      <Filter>Third Party\Hashing\hashers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\hashing\hashers\sha3.cpp">
+      <Filter>Third Party\Hashing\hashers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\hashing\hashers\sha256.cpp">
+      <Filter>Third Party\Hashing\hashers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\CPlugin.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\CLibrarySys.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\CGameConfigs.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\public\memtools\MemoryUtils.cpp">
+      <Filter>Memtools</Filter>
+    </ClCompile>
+    <ClCompile Include="..\gameconfigs.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\CoreConfig.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\amx.h">
@@ -228,9 +315,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\CEvent.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\CFile.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\CFlagManager.h">
@@ -263,16 +347,10 @@
     <ClInclude Include="..\CQueue.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\CString.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\CTask.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\CVault.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\CVector.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\datastructs.h">
@@ -288,9 +366,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\libraries.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\md5.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\messages.h">
@@ -311,9 +386,6 @@
     <ClInclude Include="..\optimizer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\resource.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\sh_list.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -323,16 +395,7 @@
     <ClInclude Include="..\sh_tinyhash.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\svn_version.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\trie_natives.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\zlib\zconf.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\zlib\zlib.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\CDataPack.h">
@@ -360,6 +423,81 @@
       <Filter>Memtools\CDetour\asm</Filter>
     </ClInclude>
     <ClInclude Include="..\CvarManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\third_party\zlib\crc32.h">
+      <Filter>Third Party\Zlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\third_party\zlib\deflate.h">
+      <Filter>Third Party\Zlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\third_party\zlib\gzguts.h">
+      <Filter>Third Party\Zlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\third_party\zlib\inffast.h">
+      <Filter>Third Party\Zlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\third_party\zlib\inffixed.h">
+      <Filter>Third Party\Zlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\third_party\zlib\inflate.h">
+      <Filter>Third Party\Zlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\third_party\zlib\inftrees.h">
+      <Filter>Third Party\Zlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\third_party\zlib\trees.h">
+      <Filter>Third Party\Zlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\third_party\zlib\zconf.h">
+      <Filter>Third Party\Zlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\third_party\zlib\zlib.h">
+      <Filter>Third Party\Zlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\third_party\zlib\zutil.h">
+      <Filter>Third Party\Zlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\third_party\hashing\hashing.h">
+      <Filter>Third Party\Hashing</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\third_party\hashing\hashers\crc32.h">
+      <Filter>Third Party\Hashing\hashers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\third_party\hashing\hashers\keccak.h">
+      <Filter>Third Party\Hashing\hashers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\third_party\hashing\hashers\md5.h">
+      <Filter>Third Party\Hashing\hashers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\third_party\hashing\hashers\sha1.h">
+      <Filter>Third Party\Hashing\hashers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\third_party\hashing\hashers\sha3.h">
+      <Filter>Third Party\Hashing\hashers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\third_party\hashing\hashers\sha256.h">
+      <Filter>Third Party\Hashing\hashers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\CFileSystem.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\CLibrarySys.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\CGameConfigs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\public\memtools\MemoryUtils.h">
+      <Filter>Memtools</Filter>
+    </ClInclude>
+    <ClInclude Include="..\natives_handles.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\gameconfigs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\CoreConfig.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -457,6 +595,12 @@
       <Filter>Pawn Includes</Filter>
     </None>
     <None Include="..\..\plugins\include\cvars.inc">
+      <Filter>Pawn Includes</Filter>
+    </None>
+    <None Include="..\..\plugins\include\gameconfig.inc">
+      <Filter>Pawn Includes</Filter>
+    </None>
+    <None Include="..\..\plugins\include\cstrike_const.inc">
       <Filter>Pawn Includes</Filter>
     </None>
   </ItemGroup>

@@ -42,7 +42,7 @@ template size_t atcprintf<char, cell>(char *, size_t, const cell *, AMX *, cell 
 template size_t atcprintf<cell, char>(cell *, size_t, const char *, AMX *, cell *, int *);
 template size_t atcprintf<char, char>(char *, size_t, const char *, AMX *, cell *, int *);
 
-THash<String, lang_err> BadLang_Table;
+THash<ke::AString, lang_err> BadLang_Table;
 
 static cvar_t *amx_mldebug = NULL;
 static cvar_t *amx_cl_langs = NULL;
@@ -112,12 +112,16 @@ const char *translate(AMX *amx, cell amxaddr, const char *key)
 				
 	if (def == NULL)
 	{
-		if (debug)
+		if (debug && status == ERR_BADLANG)
 		{
-			if (status == ERR_BADLANG && (BadLang_Table.AltFindOrInsert(pLangName).last + 120.0f < gpGlobals->time))
+			ke::AString lang(pLangName);
+
+			lang_err &err = BadLang_Table.AltFindOrInsert(ke::Move(lang));
+
+			if (err.last + 120.0f < gpGlobals->time)
 			{
 				AMXXLOG_Error("[AMXX] Language \"%s\" not found", pLangName);
-				BadLang_Table.AltFindOrInsert(pLangName).last = gpGlobals->time;
+				err.last = gpGlobals->time;
 			}
 		}
 
@@ -650,16 +654,26 @@ reswitch:
 			arg++;
 			break;
 		case 'L':
+		case 'l':
 			{
-				CHECK_ARGS(1);
-				cell addr = params[arg++];
+				cell target;
+				if (ch == 'L')
+				{
+					CHECK_ARGS(1);
+					target = params[arg++];
+				}
+				else
+				{
+					CHECK_ARGS(0);
+					target = g_langMngr.GetDefLang();
+				}
 				int len;
 				const char *key = get_amxstring(amx, params[arg++], 3, len);
-				const char *def = translate(amx, addr, key);
+				const char *def = translate(amx, target, key);
 				if (!def)
 				{
 					static char buf[255];
-					UTIL_Format(buf, sizeof(buf)-1, "ML_NOTFOUND: %s", key);
+					ke::SafeSprintf(buf, sizeof(buf), "ML_NOTFOUND: %s", key);
 					def = buf;
 				}
 				size_t written = atcprintf(buf_p, llen, def, amx, params, &arg);
@@ -694,11 +708,11 @@ reswitch:
 					}
 
 					int userid = GETPLAYERUSERID(player->pEdict);
-					UTIL_Format(buffer, sizeof(buffer), "%s<%d><%s><%s>", player->name.c_str(), userid, auth, player->team.c_str());
+					ke::SafeSprintf(buffer, sizeof(buffer), "%s<%d><%s><%s>", player->name.chars(), userid, auth, player->team.chars());
 				}
 				else
 				{
-					UTIL_Format(buffer, sizeof(buffer), "Console<0><Console><Console>");
+					ke::SafeSprintf(buffer, sizeof(buffer), "Console<0><Console><Console>");
 				}
 
 				AddString(&buf_p, llen, buffer, width, prec);
@@ -726,7 +740,7 @@ reswitch:
 						return 0;
 					}
 
-					name = player->name.c_str();
+					name = player->name.chars();
 				}
 			
 				AddString(&buf_p, llen, name, width, prec);

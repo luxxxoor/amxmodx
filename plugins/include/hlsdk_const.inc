@@ -78,6 +78,12 @@
 #define WALKMOVE_CHECKONLY              2           // Move, but don't touch triggers
 
 /**
+ * engfunc(EngFunc_MoveToOrigin, entity, Float:goal[3], Float:distance, moveType) moveType values
+ */
+#define MOVE_NORMAL                     0           // normal move in the direction monster is facing
+#define MOVE_STRAFE                     1           // moves in direction specified, no matter which way monster is facing
+
+/**
  * pev(entity, pev_movetype) values
  */
 #define MOVETYPE_NONE                   0           // Never moves
@@ -234,6 +240,7 @@
 /**
  * @section pev(entity, pev_spawnflags) values
  */
+
 /**
  * func_train
  */
@@ -607,6 +614,19 @@
  */
 
 /**
+ * Train status values
+ */
+#define TRAIN_ACTIVE  0x80
+#define TRAIN_NEW     0xc0
+
+#define TRAIN_OFF     0x00
+#define TRAIN_NEUTRAL 0x01
+#define TRAIN_SLOW    0x02
+#define TRAIN_MEDIUM  0x03
+#define TRAIN_FAST    0x04
+#define TRAIN_BACK    0x05
+ 
+/**
  * Valve Mod Weapon Constants
  */
 #define HLI_HEALTHKIT       1
@@ -632,6 +652,15 @@
 #define HLW_SNARK           15
 #define HLW_SUIT            31
 #define HLW_ALLWEAPONS      (~(1<<HLW_SUIT))
+
+/**
+ * Item's flags
+ */
+#define ITEM_FLAG_SELECTONEMPTY     (1<<0)
+#define ITEM_FLAG_NOAUTORELOAD      (1<<1)
+#define ITEM_FLAG_NOAUTOSWITCHEMPTY (1<<2)
+#define ITEM_FLAG_LIMITINWORLD      (1<<3)
+#define ITEM_FLAG_EXHAUSTIBLE		(1<<4)
 
 
 #define FEV_NOTHOST     (1<<0)  // Skip local host for event send.

@@ -14,7 +14,7 @@
 #include <amxmodx>
 #include <amxmisc>
 
-new g_menuLang[MAX_PLAYERS]
+new g_menuLang[MAX_PLAYERS + 1]
 new g_langNum
 new g_coloredMenus
 
@@ -48,7 +48,7 @@ public client_putinserver(id)
 	}
 }
 
-public client_disconnect(id)
+public client_disconnected(id)
 {
 	remove_task(id)
 }

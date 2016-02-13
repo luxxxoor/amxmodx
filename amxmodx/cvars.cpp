@@ -39,18 +39,23 @@ static cell AMX_NATIVE_CALL create_cvar(AMX *amx, cell *params)
 		bool hasMax  = params[7] != 0;
 		float minVal = amx_ctof(params[6]);
 		float maxVal = amx_ctof(params[8]);
-
-		if (!g_CvarManager.SetCvarMin(info, hasMin, minVal, plugin->getId()))
+		
+		if (hasMin && hasMax)
 		{
-			LogError(amx, AMX_ERR_NATIVE, "The minimum value can not be above the maximum value");
-			return 0;
+			if (minVal > maxVal)
+			{
+				LogError(amx, AMX_ERR_NATIVE, "The minimum value can not be above the maximum value");
+				return 0;
+			}
+			else if (maxVal < minVal)
+			{
+				LogError(amx, AMX_ERR_NATIVE, "The maximum value can not be below the minimum value");
+				return 0;
+			}
 		}
 
-		if (!g_CvarManager.SetCvarMax(info, hasMax, maxVal, plugin->getId()))
-		{
-			LogError(amx, AMX_ERR_NATIVE, "The maximum value can not be below the minimum value");
-			return 0;
-		}
+		g_CvarManager.SetCvarMin(info, hasMin, minVal, plugin->getId());
+		g_CvarManager.SetCvarMax(info, hasMax, maxVal, plugin->getId());
 
 		return reinterpret_cast<cell>(info->var);
 	}
@@ -202,7 +207,7 @@ static cell AMX_NATIVE_CALL get_cvar_string(AMX *amx, cell *params)
 	const char *value = info ? info->var->string : "";
 	length = info ? strlen(value) : 0;
 
-	return set_amxstring_utf8(amx, params[2], value, length, params[3] + 1); // + EOS
+	return set_amxstring_utf8(amx, params[2], value, length, params[3]);
 }
 
 // set_cvar_flags(const cvar[], flags)
@@ -235,7 +240,7 @@ static cell AMX_NATIVE_CALL set_cvar_float(AMX *amx, cell *params)
 
 	if (info)
 	{
-		UTIL_Format(CVarTempBuffer, sizeof(CVarTempBuffer) - 1, "%f", amx_ctof(params[2]));
+		ke::SafeSprintf(CVarTempBuffer, sizeof(CVarTempBuffer), "%f", amx_ctof(params[2]));
 		CVAR_DIRECTSET(info->var, &CVarTempBuffer[0]);
 	}
 
@@ -253,7 +258,7 @@ static cell AMX_NATIVE_CALL set_cvar_num(AMX *amx, cell *params)
 
 	if (info)
 	{
-		UTIL_Format(CVarTempBuffer, sizeof(CVarTempBuffer) - 1, "%d", value);
+		ke::SafeSprintf(CVarTempBuffer, sizeof(CVarTempBuffer), "%d", value);
 		CVAR_DIRECTSET(info->var, &CVarTempBuffer[0]);
 	}
 
@@ -331,7 +336,7 @@ static cell AMX_NATIVE_CALL get_pcvar_string(AMX *amx, cell *params)
 		return 0;
 	}
 
-	return set_amxstring_utf8(amx, params[2], ptr->string ? ptr->string : "", ptr->string ? strlen(ptr->string) : 0, params[3] + 1); // EOS
+	return set_amxstring_utf8(amx, params[2], ptr->string ? ptr->string : "", ptr->string ? strlen(ptr->string) : 0, params[3]);
 }
 
 // get_pcvar_bounds(pcvar, CvarBounds:type, &Float:value)
@@ -439,7 +444,7 @@ static cell AMX_NATIVE_CALL set_pcvar_float(AMX *amx, cell *params)
 		return 0;
 	}
 
-	UTIL_Format(CVarTempBuffer, sizeof(CVarTempBuffer) - 1, "%f", amx_ctof(params[2]));
+	ke::SafeSprintf(CVarTempBuffer, sizeof(CVarTempBuffer), "%f", amx_ctof(params[2]));
 	CVAR_DIRECTSET(ptr, &CVarTempBuffer[0]);
 
 	return 1;
@@ -455,7 +460,7 @@ static cell AMX_NATIVE_CALL set_pcvar_num(AMX *amx, cell *params)
 		return 0;
 	}
 
-	UTIL_Format(CVarTempBuffer, sizeof(CVarTempBuffer) - 1, "%d", params[2]);
+	ke::SafeSprintf(CVarTempBuffer, sizeof(CVarTempBuffer), "%d", params[2]);
 	CVAR_DIRECTSET(ptr, &CVarTempBuffer[0]);
 
 	return 1;
@@ -498,20 +503,24 @@ static cell AMX_NATIVE_CALL set_pcvar_bounds(AMX *amx, cell *params)
 	{
 		case CvarBound_Lower:
 		{
-			if (!g_CvarManager.SetCvarMin(info, set, value, pluginId))
+			if (set && info->bound.hasMax && value > info->bound.maxVal)
 			{
 				LogError(amx, AMX_ERR_NATIVE, "The minimum value can not be above the maximum value");
 				return 0;
 			}
+
+			g_CvarManager.SetCvarMin(info, set, value, pluginId);
 			break;
 		}
 		case CvarBound_Upper:
 		{
-			if (!g_CvarManager.SetCvarMax(info, set, value, pluginId))
+			if (set && info->bound.hasMin && value < info->bound.minVal)
 			{
 				LogError(amx, AMX_ERR_NATIVE, "The maximum value can not be below the minimum value");
 				return 0;
 			}
+
+			g_CvarManager.SetCvarMax(info, set, value, pluginId);
 			break;
 		}
 		default:

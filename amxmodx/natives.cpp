@@ -28,19 +28,19 @@
 //With the exception for param_convert, which was written by
 // Julien "dJeyL" Laurent
 
-CVector<regnative *> g_RegNatives;
+ke::Vector<regnative *> g_RegNatives;
 static char g_errorStr[512] = {0};
 bool g_Initialized = false;
 
 /* Stack stuff */
 regnative *g_pCurNative = NULL;
 AMX *g_pCaller = NULL;
-cell g_Params[CALLFUNC_MAXPARAMS];
+cell g_Params[CALLFUNC_MAXPARAMS + 1];
 int g_CurError = AMX_ERR_NONE;
 
 int amxx_DynaCallback(int idx, AMX *amx, cell *params)
 {
-	if (idx < 0 || idx >= (int)g_RegNatives.size())
+	if (idx < 0 || idx >= (int)g_RegNatives.length())
 	{
 		LogError(amx, AMX_ERR_NATIVE, "Invalid dynamic native called");
 		return 0;
@@ -152,24 +152,24 @@ int amxx_DynaCallback(int idx, AMX *amx, cell *params)
 
 AMX_NATIVE_INFO *BuildNativeTable()
 {
-	if (g_RegNatives.size() < 1)
+	if (g_RegNatives.length() < 1)
 	{
 		return NULL;
 	}
 
-	AMX_NATIVE_INFO *pNatives = new AMX_NATIVE_INFO[g_RegNatives.size() + 1];
+	AMX_NATIVE_INFO *pNatives = new AMX_NATIVE_INFO[g_RegNatives.length() + 1];
 
 	AMX_NATIVE_INFO info;
 	regnative *pNative;
-	for (size_t i=0; i<g_RegNatives.size(); i++)
+	for (size_t i=0; i<g_RegNatives.length(); i++)
 	{
 		pNative = g_RegNatives[i];
-		info.name = pNative->name.c_str();
+		info.name = pNative->name.chars();
 		info.func = (AMX_NATIVE)((void *)(pNative->pfn));
 		pNatives[i] = info;
 	}
-	pNatives[g_RegNatives.size()].name = NULL;
-	pNatives[g_RegNatives.size()].func = NULL;
+	pNatives[g_RegNatives.length()].name = NULL;
+	pNatives[g_RegNatives.length()].func = NULL;
 
 	//this needs to be deleted
 	return pNatives;
@@ -180,7 +180,7 @@ static cell AMX_NATIVE_CALL log_error(AMX *amx, cell *params)
 	int len;
 	char *err = format_amxstring(amx, params, 2, len);
 
-	UTIL_Format(g_errorStr, sizeof(g_errorStr), "%s", err);
+	ke::SafeSprintf(g_errorStr, sizeof(g_errorStr), "%s", err);
 	g_CurError = params[1];
 
 	return 1;
@@ -474,15 +474,15 @@ static cell AMX_NATIVE_CALL register_native(AMX *amx, cell *params)
 	mprotect((void *)pNative->pfn, size+10, PROT_READ|PROT_WRITE|PROT_EXEC);
 #endif
 
-	int id = (int)g_RegNatives.size();
+	int id = (int)g_RegNatives.length();
 	
 	amxx_DynaMake(pNative->pfn, id);
 	pNative->func = idx;
 	pNative->style = params[3];
 
-	g_RegNatives.push_back(pNative);
+	g_RegNatives.append(pNative);
 
-	pNative->name.assign(name);
+	pNative->name = name;
 
 	return 1;
 }
@@ -490,7 +490,7 @@ static cell AMX_NATIVE_CALL register_native(AMX *amx, cell *params)
 void ClearPluginLibraries()
 {
 	ClearLibraries(LibSource_Plugin);
-	for (size_t i=0; i<g_RegNatives.size(); i++)
+	for (size_t i=0; i<g_RegNatives.length(); i++)
 	{
 		delete [] g_RegNatives[i]->pfn;
 		delete g_RegNatives[i];

@@ -8,7 +8,7 @@
 //     https://alliedmods.net/amxmodx-license
 
 #if defined _amxconst_included
-  #endinput
+	#endinput
 #endif
 #define _amxconst_included
 
@@ -37,9 +37,22 @@
  *        all possible server situations. MaxClients changes based on the
  *        server the plugin is deployed on..
  */
-#define MAX_PLAYERS 33 /* Maximum number of players AMX Mod X supports */
+#define MAX_PLAYERS 32 /* Maximum number of players AMX Mod X supports */
 
-public stock const MaxClients; /* Maximum number of players the server supports */
+/**
+ * Maximum number of players the server supports 
+ */
+public stock const MaxClients; 
+
+/**
+ * Pass this into certain functions to act as a C++ NULL 
+ */
+public stock const NULL_STRING[1];
+
+/**
+ * Pass this into certain functions to act as a C++ NULL
+ */
+public stock const Float:NULL_VECTOR[3];
 
 /**
  * The maximum buffer size required to store a clients name.
@@ -106,43 +119,6 @@ public stock const MaxClients; /* Maximum number of players the server supports 
 #define PLUGIN_HANDLED_MAIN 2   /* to use in client_command(), continue all plugins but stop the command */
 
 /**
- * IDs of weapons in CS
- */
-#define CSW_P228            1
-#define CSW_SCOUT           3
-#define CSW_HEGRENADE       4
-#define CSW_XM1014          5
-#define CSW_C4              6
-#define CSW_MAC10           7
-#define CSW_AUG             8
-#define CSW_SMOKEGRENADE    9
-#define CSW_ELITE           10
-#define CSW_FIVESEVEN       11
-#define CSW_UMP45           12
-#define CSW_SG550           13
-#define CSW_GALI            14
-#define CSW_GALIL           14
-#define CSW_FAMAS           15
-#define CSW_USP             16
-#define CSW_GLOCK18         17
-#define CSW_AWP             18
-#define CSW_MP5NAVY         19
-#define CSW_M249            20
-#define CSW_M3              21
-#define CSW_M4A1            22
-#define CSW_TMP             23
-#define CSW_G3SG1           24
-#define CSW_FLASHBANG       25
-#define CSW_DEAGLE          26
-#define CSW_SG552           27
-#define CSW_AK47            28
-#define CSW_KNIFE           29
-#define CSW_P90             30
-#define CSW_VEST            31  // Custom
-#define CSW_VESTHELM        32  // Custom
-#define CSW_SHIELDGUN       99
-
-/**
  * HI weapon constants
  */
 #define HIW_BERETTA     1
@@ -174,6 +150,7 @@ public stock const MaxClients; /* Maximum number of players the server supports 
 #define HIT_RIGHTARM    5
 #define HIT_LEFTLEG     6
 #define HIT_RIGHTLEG    7
+#define HIT_SHIELD      8 // CS only
 
 /**
  * @section emit_sound() constants
@@ -450,3 +427,27 @@ enum AdminProp
 	AdminProp_Access,
 	AdminProp_Flags
 };
+
+/**
+ * HashType constants
+ * To be used on hash_file() and hash_string()
+ */
+enum HashType
+{
+	Hash_Crc32 = 0,  // Provides CRC32 hashing
+	Hash_Md5,        // Provides MD5 hashing
+	Hash_Sha1,       // Provides SHA1 hashing
+	Hash_Sha256,     // Provides SHA256 hashing
+
+	Hash_Sha3_224,   // Provides SHA3 224 bit hashing
+	Hash_Sha3_256,   // Provides SHA3 256 bit hashing
+	Hash_Sha3_384,   // Provides SHA3 384 bit hashing
+	Hash_Sha3_512,   // Provides SHA3 512 bit hashing
+
+	Hash_Keccak_224, // Provides Keccak 224 bit hashing
+	Hash_Keccak_256, // Provides Keccak 256 bit hashing
+	Hash_Keccak_384, // Provides Keccak 384 bit hashing
+	Hash_Keccak_512  // Provides Keccak 512 bit hashing
+};
+
+#include <cstrike_const> // To keep backward compatibility

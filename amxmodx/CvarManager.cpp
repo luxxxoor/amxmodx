@@ -155,7 +155,7 @@ void CvarManager::CreateCvarHook(void)
 }
 
 CvarInfo* CvarManager::CreateCvar(const char* name, const char* value, const char* plugin, int pluginId, int flags,
-								  const char* helpText, bool hasMin, float min, bool hasMax, float max)
+								  const char* helpText)
 {
 	cvar_t*    var = nullptr;
 	CvarInfo* info = nullptr;
@@ -166,7 +166,7 @@ CvarInfo* CvarManager::CreateCvar(const char* name, const char* value, const cha
 		var = CVAR_GET_POINTER(name);
 
 		// Whether it exists, we need to prepare a new entry.
-		info = new CvarInfo(name, helpText, hasMin, min, hasMax, max, plugin, pluginId);
+		info = new CvarInfo(name, helpText, plugin, pluginId);
 
 		if (var)
 		{
@@ -230,7 +230,7 @@ CvarInfo* CvarManager::CreateCvar(const char* name, const char* value, const cha
 
 	// Detour is disabled on map change.
 	// Don't enable it unless there are things to do.
-	if (info->bound.hasMin || info->bound.hasMax)
+	if ((info->bound.hasMin || info->bound.hasMax) && m_HookDetour)
 	{
 		m_HookDetour->EnableDetour();
 	}
@@ -321,7 +321,10 @@ AutoForward* CvarManager::HookCvarChange(cvar_t* var, AMX* amx, cell param, cons
 	}
 
 	// Detour is disabled on map change.
-	m_HookDetour->EnableDetour();
+	if (m_HookDetour)
+	{
+		m_HookDetour->EnableDetour();
+	}
 
 	AutoForward* forward = new AutoForward(forwardId, *callback);
 	info->hooks.append(new CvarHook(g_plugins.findPlugin(amx)->getId(), forward));
@@ -374,57 +377,64 @@ bool CvarManager::BindCvar(CvarInfo* info, CvarBind::CvarType type, AMX* amx, ce
 	}
 
 	// Detour is disabled on map change.
-	m_HookDetour->EnableDetour();
+	if (m_HookDetour)
+	{
+		m_HookDetour->EnableDetour();
+	}
 
 	return true;
 }
 
-bool CvarManager::SetCvarMin(CvarInfo* info, bool set, float value, int pluginId)
+void CvarManager::SetCvarMin(CvarInfo* info, bool set, float value, int pluginId)
 {
 	info->bound.hasMin = set;
 	info->bound.minPluginId = pluginId;
 
 	if (set)
 	{
-		if (info->bound.hasMax && value > info->bound.maxVal)
+		// Detour is disabled on map change.
+		if (m_HookDetour)
 		{
-			return false;
+			m_HookDetour->EnableDetour();
 		}
 
 		info->bound.minVal = value;
 
-		// Detour is disabled on map change.
-		m_HookDetour->EnableDetour();
+		// Current value is already in the allowed range.
+		if (info->var->value >= value)
+		{
+			return;
+		}
 
 		// Update if needed.
 		CVAR_SET_FLOAT(info->var->name, value);
 	}
-
-	return true;
 }
 
-bool CvarManager::SetCvarMax(CvarInfo* info, bool set, float value, int pluginId)
+void CvarManager::SetCvarMax(CvarInfo* info, bool set, float value, int pluginId)
 {
 	info->bound.hasMax = set;
 	info->bound.maxPluginId = pluginId;
 
 	if (set)
 	{
-		if (info->bound.hasMin && value < info->bound.minVal)
+		// Detour is disabled on map change.
+		if (m_HookDetour)
 		{
-			return false;
+			m_HookDetour->EnableDetour();
 		}
 
 		info->bound.maxVal = value;
 
-		// Detour is disabled on map change.
-		m_HookDetour->EnableDetour();
+		// Current value is already in the allowed range.
+		if (info->var->value <= value)
+		{
+			return;
+		}
 
 		// Update if needed.
 		CVAR_SET_FLOAT(info->var->name, value);
 	}
-
-	return true;
 }
 
 size_t CvarManager::GetRegCvarsCount()
@@ -432,9 +442,14 @@ size_t CvarManager::GetRegCvarsCount()
 	return m_AmxmodxCvars;
 }
 
-AutoString convertFlagsToString(int flags)
+CvarsList* CvarManager::GetCvarsList()
 {
-	AutoString flagsName;
+	return &m_Cvars;
+}
+
+ke::AutoString convertFlagsToString(int flags)
+{
+	ke::AutoString flagsName;
 
 	if (flags > 0)
 	{
@@ -596,28 +611,41 @@ void CvarManager::OnPluginUnloaded()
 
 	// There is no point to enable detour if at next map change
 	// no plugins hook cvars.
-	m_HookDetour->DisableDetour();
+	if (m_HookDetour)
+	{
+		m_HookDetour->DisableDetour();
+	}
 }
 
 void CvarManager::OnAmxxShutdown()
 {
 	// Free everything.
 
-	for (CvarsList::iterator cvar = m_Cvars.begin(); cvar != m_Cvars.end(); cvar = m_Cvars.erase(cvar))
+	CvarsList::iterator iter = m_Cvars.begin();
+
+	while (iter != m_Cvars.end())
 	{
-		for (size_t i = 0; i < (*cvar)->binds.length(); ++i)
+		CvarInfo* cvar = (*iter);
+
+		for (size_t i = 0; i < cvar->binds.length(); ++i)
 		{
-			delete (*cvar)->binds[i];
+			delete cvar->binds[i];
 		}
 
-		for (size_t i = 0; i < (*cvar)->hooks.length(); ++i)
+		for (size_t i = 0; i < cvar->hooks.length(); ++i)
 		{
-			delete (*cvar)->hooks[i];
+			delete cvar->hooks[i];
 		}
 
-		delete (*cvar);
+		iter = m_Cvars.erase(iter);
+
+		delete cvar;
 	}
 
 	m_Cache.clear();
-	m_HookDetour->Destroy();
+
+	if (m_HookDetour)
+	{
+		m_HookDetour->Destroy();
+	}
 }

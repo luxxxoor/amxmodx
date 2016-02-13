@@ -113,9 +113,9 @@ int set_amxstring_utf8(AMX *amx, cell amx_addr, const T *source, size_t sourcele
 	register cell* dest = (cell *)(amx->base + (int)(((AMX_HEADER *)amx->base)->dat + amx_addr));
 	register cell* start = dest;
 
-	if (len >= maxlen)
+	if (len > maxlen)
 	{
-		len = maxlen - 1;
+		len = maxlen;
 		needtocheck = true;
 	}
 
@@ -174,6 +174,27 @@ char *get_amxstring(AMX *amx, cell amx_addr, int id, int& len)
 	static char buffer[4][16384];
 	len = get_amxstring_r(amx, amx_addr, buffer[id], sizeof(buffer[id]) - 1);
 	return buffer[id];
+}
+
+char *get_amxstring_null(AMX *amx, cell amx_addr, int id, int& len)
+{
+	if (get_amxaddr(amx, amx_addr) == g_plugins.findPluginFast(amx)->getNullStringOfs())
+	{
+		return nullptr;
+	}
+
+	return get_amxstring(amx, amx_addr, id, len);
+}
+
+cell *get_amxvector_null(AMX *amx, cell amx_addr)
+{
+	cell *addr = get_amxaddr(amx, amx_addr);
+	if (addr == g_plugins.findPluginFast(amx)->getNullVectorOfs())
+	{
+		return nullptr;
+	}
+
+	return addr;
 }
 
 void copy_amxmemory(cell* dest, cell* src, int len)
@@ -864,8 +885,8 @@ static cell AMX_NATIVE_CALL amx_strtok(AMX *amx, cell *params)
 
 	right[right_pos] = 0;
 	left[left_pos] = 0;
-	set_amxstring_utf8(amx, params[2], left, strlen(left), leftMax + 1); // +EOS
-	set_amxstring_utf8(amx, params[4], right, strlen(right), rightMax + 1); // +EOS
+	set_amxstring_utf8(amx, params[2], left, strlen(left), leftMax);
+	set_amxstring_utf8(amx, params[4], right, strlen(right), rightMax);
 	delete [] left;
 	delete [] right;
 	
@@ -939,8 +960,8 @@ static cell AMX_NATIVE_CALL amx_strtok2(AMX *amx, cell *params)
 	right[right_pos] = 0;
 	left[left_pos] = 0;
 
-	set_amxstring_utf8(amx, params[2], left, strlen(left), left_max + 1); // + EOS
-	set_amxstring_utf8(amx, params[4], right, strlen(right), right_max + 1); // + EOS
+	set_amxstring_utf8(amx, params[2], left, strlen(left), left_max);
+	set_amxstring_utf8(amx, params[4], right, strlen(right), right_max);
 
 	delete [] left;
 	delete [] right;
@@ -1040,7 +1061,7 @@ do_copy:
 				                    : end - beg
 				                   )
 				                 : 0;
-				set_amxstring_utf8(amx, params[2], start, strlen(start), copylen + 1); // + EOS
+				set_amxstring_utf8(amx, params[2], start, strlen(start), copylen);
 
 				end = (len-i+1 > (size_t)RightMax) ? (size_t)RightMax : len-i+1;
 				if (end)
@@ -1056,7 +1077,7 @@ do_copy:
 	}
 
 	//if we got here, there was nothing to break
-	set_amxstring_utf8(amx, params[2], &(string[beg]), strlen(&(string[beg])), LeftMax + 1); // + EOS
+	set_amxstring_utf8(amx, params[2], &(string[beg]), strlen(&(string[beg])), LeftMax);
 	if (RightMax)
 		*right = '\0';
 
@@ -1085,13 +1106,13 @@ static cell AMX_NATIVE_CALL split_string(AMX *amx, cell *params)
 		if (strncmp(&text[i], split, splitLen) == 0)
 		{
 			/* Split hereeeee */
-			if (i >= maxLen + 1) // + null terminator
+			if (i > maxLen)
 			{
-				set_amxstring_utf8(amx, params[3], text, textLen, maxLen + 1); // + null terminator
+				set_amxstring_utf8(amx, params[3], text, textLen, maxLen);
 			}
 			else
 			{
-				set_amxstring_utf8(amx, params[3], text, textLen, i + 1);
+				set_amxstring_utf8(amx, params[3], text, textLen, i);
 			}
 			return i + splitLen;
 		}
@@ -1113,7 +1134,7 @@ static cell AMX_NATIVE_CALL format_args(AMX *amx, cell *params)
 
 	char* string = format_arguments(amx, pos, len); // indexed from 0
 	
-	return set_amxstring_utf8(amx, params[1], string, len, params[2] + 1); // + EOS
+	return set_amxstring_utf8(amx, params[1], string, len, params[2]);
 }
 
 static cell AMX_NATIVE_CALL is_digit(AMX *amx, cell *params)
@@ -1230,17 +1251,16 @@ static cell AMX_NATIVE_CALL amx_strlen(AMX *amx, cell *params)
 
 static cell AMX_NATIVE_CALL amx_trim(AMX *amx, cell *params)
 {
-	int len;
+	int len, newlen;
 	char *str = get_amxstring(amx, params[1], 0, len);
 
-	String toTrim;
+	UTIL_TrimLeft(str);
+	UTIL_TrimRight(str);
 
-	toTrim.assign(str);
-	toTrim.trim();
+	newlen = strlen(str);
+	len -= newlen;
 
-	len -= toTrim.size();
-
-	set_amxstring(amx, params[1], toTrim.c_str(), toTrim.size());
+	set_amxstring(amx, params[1], str, newlen);
 
 	return len;
 }
@@ -1291,9 +1311,9 @@ static cell AMX_NATIVE_CALL n_strncmp(AMX *amx, cell *params)
 	char *str2 = get_amxstring(amx, params[2], 1, len);
 
 	if (params[4])
-		return strncmp(str1, str2, (size_t)params[3]);
-	else
 		return strncasecmp(str1, str2, (size_t)params[3]);
+	else
+		return strncmp(str1, str2, (size_t)params[3]);
 }
 
 static cell AMX_NATIVE_CALL n_strfind(AMX *amx, cell *params)

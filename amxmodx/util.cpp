@@ -10,22 +10,6 @@
 #include <time.h>
 #include "amxmodx.h"
 
-#if ( defined(__linux__) || defined(__APPLE__) ) && !defined _vsnprintf
-	#define _vsnprintf vsnprintf
-#endif
-
-char *UTIL_VarArgs(const char *fmt, ...)
-{
-	va_list ap;
-	static char string[4096];
-
-	va_start(ap, fmt);
-	_vsnprintf(string, sizeof(string)-1, fmt, ap);
-	va_end(ap);
-
-	return string;
-}
-
 int UTIL_ReadFlags(const char* c) 
 {
 	int flags = 0;
@@ -351,9 +335,7 @@ void UTIL_FakeClientCommand(edict_t *pEdict, const char *cmd, const char *arg1, 
 		g_fakecmd.argv[1] = arg1;
 		g_fakecmd.argv[2] = arg2;
 		// build argument line
-		UTIL_Format(g_fakecmd.args, 255, "%s %s", arg1, arg2);
-		// if UTIL_Format reached 255 chars limit, this will make sure there will be no access violation
-		g_fakecmd.args[255] = 0;
+		ke::SafeSprintf(g_fakecmd.args, sizeof(g_fakecmd.args), "%s %s", arg1, arg2);
 	}
 	else if (arg1)
 	{								// only one argument passed
@@ -361,9 +343,7 @@ void UTIL_FakeClientCommand(edict_t *pEdict, const char *cmd, const char *arg1, 
 		// store argument
 		g_fakecmd.argv[1] = arg1;
 		// build argument line
-		UTIL_Format(g_fakecmd.args, 255, "%s", arg1);
-		// if UTIL_Format reached 255 chars limit, this will make sure there will be no access violation
-		g_fakecmd.args[255] = 0;
+		ke::SafeSprintf(g_fakecmd.args, sizeof(g_fakecmd.args), "%s", arg1);
 	}
 	else
 		g_fakecmd.argc = 1;			// no argmuents -> only one command
@@ -694,20 +674,47 @@ char *UTIL_ReplaceEx(char *subject, size_t maxLen, const char *search, size_t se
 	return NULL;
 }
 
-size_t UTIL_Format(char *buffer, size_t maxlength, const char *fmt, ...)
+// From Metamod:Source
+void UTIL_TrimLeft(char *buffer)
 {
-	va_list ap;
-	va_start(ap, fmt);
-	size_t len = vsnprintf(buffer, maxlength, fmt, ap);
-	va_end(ap);
+	/* Let's think of this as our iterator */
+	char *i = buffer;
 
-	if (len >= maxlength)
+	/* Make sure the buffer isn't null */
+	if (i && *i)
 	{
-		buffer[maxlength - 1] = '\0';
-		return (maxlength - 1);
+		/* Add up number of whitespace characters */
+		while (isspace(static_cast<unsigned char>(*i)))
+		{
+			i++;
+		}
+
+		/* If whitespace chars in buffer then adjust string so first non-whitespace char is at start of buffer */
+		if (i != buffer)
+		{
+			memmove(buffer, i, (strlen(i) + 1) * sizeof(char));
+		}
 	}
-	else
+}
+
+void UTIL_TrimRight(char *buffer)
+{
+	/* Make sure buffer isn't null */
+	if (buffer)
 	{
-		return len;
+		size_t len = strlen(buffer);
+
+		/* Loop through buffer backwards while replacing whitespace chars with null chars */
+		for (size_t i = len - 1; i < len; i--)
+		{
+			if (isspace(static_cast<unsigned char>(buffer[i])))
+			{
+				buffer[i] = '\0';
+			}
+			else 
+			{
+				break;
+			}
+		}
 	}
 }

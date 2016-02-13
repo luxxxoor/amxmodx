@@ -14,16 +14,16 @@
 #include <amxmodx>
 #include <csx>
 
-new g_pingSum[MAX_PLAYERS]
-new g_pingCount[MAX_PLAYERS]
-new g_inGame[MAX_PLAYERS]
+new g_pingSum[MAX_PLAYERS + 1]
+new g_pingCount[MAX_PLAYERS + 1]
+new g_inGame[MAX_PLAYERS + 1]
 
 public plugin_init()
 {
 	register_plugin("CS Stats Logging", AMXX_VERSION_STR, "AMXX Dev Team")
 }
 
-public client_disconnect(id)
+public client_disconnected(id)
 {
 	if (!g_inGame[id])
 		return

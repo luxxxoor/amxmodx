@@ -29,18 +29,18 @@
 
 #include "CDataPack.h"
 
-CDataPackHandles g_DataPackHandles;
+NativeHandle<CDataPack> DataPackHandles;
 
 static cell AMX_NATIVE_CALL CreateDataPack(AMX* amx, cell* params)
 {
-	return static_cast<cell>(g_DataPackHandles.create());
+	return static_cast<cell>(DataPackHandles.create());
 }
 
 static cell AMX_NATIVE_CALL WritePackCell(AMX* amx, cell* params)
 {
-	CDataPack *d = g_DataPackHandles.lookup(params[1]);
+	CDataPack *d = DataPackHandles.lookup(params[1]);
 
-	if (d == NULL)
+	if (!d)
 	{
 		LogError(amx, AMX_ERR_NATIVE, "Invalid datapack handle provided (%d)", params[1]);
 		return 0;
@@ -53,9 +53,9 @@ static cell AMX_NATIVE_CALL WritePackCell(AMX* amx, cell* params)
 
 static cell AMX_NATIVE_CALL WritePackFloat(AMX* amx, cell* params)
 {
-	CDataPack *d = g_DataPackHandles.lookup(params[1]);
+	CDataPack *d = DataPackHandles.lookup(params[1]);
 
-	if (d == NULL)
+	if (!d)
 	{
 		LogError(amx, AMX_ERR_NATIVE, "Invalid datapack handle provided (%d)", params[1]);
 		return 0;
@@ -68,9 +68,9 @@ static cell AMX_NATIVE_CALL WritePackFloat(AMX* amx, cell* params)
 
 static cell AMX_NATIVE_CALL WritePackString(AMX* amx, cell* params)
 {
-	CDataPack *d = g_DataPackHandles.lookup(params[1]);
+	CDataPack *d = DataPackHandles.lookup(params[1]);
 
-	if (d == NULL)
+	if (!d)
 	{
 		LogError(amx, AMX_ERR_NATIVE, "Invalid datapack handle provided (%d)", params[1]);
 		return 0;
@@ -86,17 +86,17 @@ static cell AMX_NATIVE_CALL WritePackString(AMX* amx, cell* params)
 
 static cell AMX_NATIVE_CALL ReadPackCell(AMX* amx, cell* params)
 {
-	CDataPack *d = g_DataPackHandles.lookup(params[1]);
+	CDataPack *d = DataPackHandles.lookup(params[1]);
 
-	if (d == NULL)
+	if (!d)
 	{
 		LogError(amx, AMX_ERR_NATIVE, "Invalid datapack handle provided (%d)", params[1]);
 		return 0;
 	}
 
-	if (!d->IsReadable(sizeof(size_t) + sizeof(cell)))
+	if (!d->CanReadCell())
 	{
-		LogError(amx, AMX_ERR_NATIVE, "DataPack operation is out of bounds.");
+		LogError(amx, AMX_ERR_NATIVE, "Datapack operation is invalid.");
 		return 0;
 	}
 
@@ -105,17 +105,17 @@ static cell AMX_NATIVE_CALL ReadPackCell(AMX* amx, cell* params)
 
 static cell AMX_NATIVE_CALL ReadPackFloat(AMX* amx, cell* params)
 {
-	CDataPack *d = g_DataPackHandles.lookup(params[1]);
+	CDataPack *d = DataPackHandles.lookup(params[1]);
 
-	if (d == NULL)
+	if (!d)
 	{
 		LogError(amx, AMX_ERR_NATIVE, "Invalid datapack handle provided (%d)", params[1]);
 		return 0;
 	}
 
-	if (!d->IsReadable(sizeof(size_t) + sizeof(float)))
+	if (!d->CanReadFloat())
 	{
-		LogError(amx, AMX_ERR_NATIVE, "DataPack operation is out of bounds.");
+		LogError(amx, AMX_ERR_NATIVE, "Datapack operation is invalid.");
 		return 0;
 	}
 
@@ -126,30 +126,31 @@ static cell AMX_NATIVE_CALL ReadPackFloat(AMX* amx, cell* params)
 
 static cell AMX_NATIVE_CALL ReadPackString(AMX* amx, cell* params)
 {
-	CDataPack *d = g_DataPackHandles.lookup(params[1]);
+	CDataPack *d = DataPackHandles.lookup(params[1]);
 
-	if (d == NULL)
+	if (!d)
 	{
 		LogError(amx, AMX_ERR_NATIVE, "Invalid datapack handle provided (%d)", params[1]);
 		return 0;
 	}
 
-	const char *str;
-	size_t len;
-	if (!(str = d->ReadString(&len)))
+	if (!d->CanReadString(NULL))
 	{
-		LogError(amx, AMX_ERR_NATIVE, "DataPack operation is out of bounds.");
+		LogError(amx, AMX_ERR_NATIVE, "Datapack operation is invalid.");
 		return 0;
 	}
 
-	return set_amxstring_utf8(amx, params[2], str, len, params[3] + 1); // + EOS
+	size_t len;
+	const char *str = d->ReadString(&len);
+
+	return set_amxstring_utf8(amx, params[2], str, len, params[3]);
 }
 
 static cell AMX_NATIVE_CALL ResetPack(AMX* amx, cell* params)
 {
-	CDataPack *d = g_DataPackHandles.lookup(params[1]);
+	CDataPack *d = DataPackHandles.lookup(params[1]);
 
-	if (d == NULL)
+	if (!d)
 	{
 		LogError(amx, AMX_ERR_NATIVE, "Invalid datapack handle provided (%d)", params[1]);
 		return 0;
@@ -167,9 +168,9 @@ static cell AMX_NATIVE_CALL ResetPack(AMX* amx, cell* params)
 
 static cell AMX_NATIVE_CALL GetPackPosition(AMX* amx, cell* params)
 {
-	CDataPack *d = g_DataPackHandles.lookup(params[1]);
+	CDataPack *d = DataPackHandles.lookup(params[1]);
 
-	if (d == NULL)
+	if (!d)
 	{
 		LogError(amx, AMX_ERR_NATIVE, "Invalid datapack handle provided (%d)", params[1]);
 		return 0;
@@ -180,9 +181,9 @@ static cell AMX_NATIVE_CALL GetPackPosition(AMX* amx, cell* params)
 
 static cell AMX_NATIVE_CALL SetPackPosition(AMX* amx, cell* params)
 {
-	CDataPack *d = g_DataPackHandles.lookup(params[1]);
+	CDataPack *d = DataPackHandles.lookup(params[1]);
 
-	if (d == NULL)
+	if (!d)
 	{
 		LogError(amx, AMX_ERR_NATIVE, "Invalid datapack handle provided (%d)", params[1]);
 		return 0;
@@ -197,31 +198,31 @@ static cell AMX_NATIVE_CALL SetPackPosition(AMX* amx, cell* params)
 	return 1;
 }
 
-static cell AMX_NATIVE_CALL IsPackReadable(AMX* amx, cell* params)
+static cell AMX_NATIVE_CALL IsPackEnded(AMX* amx, cell* params)
 {
-	CDataPack *d = g_DataPackHandles.lookup(params[1]);
+	CDataPack *d = DataPackHandles.lookup(params[1]);
 
-	if (d == NULL)
+	if (!d)
 	{
 		LogError(amx, AMX_ERR_NATIVE, "Invalid datapack handle provided (%d)", params[1]);
 		return 0;
 	}
 
-	return d->IsReadable(params[2]) ? 1 : 0;
+	return d->IsReadable(1) ? false : true;
 }
 
 static cell AMX_NATIVE_CALL DestroyDataPack(AMX* amx, cell* params)
 {
 	cell *ptr = get_amxaddr(amx, params[1]);
 
-	CDataPack *d = g_DataPackHandles.lookup(*ptr);
+	CDataPack *d = DataPackHandles.lookup(*ptr);
 
-	if (d == NULL)
+	if (!d)
 	{
 		return 0;
 	}
 
-	if (g_DataPackHandles.destroy(*ptr))
+	if (DataPackHandles.destroy(*ptr))
 	{
 		*ptr = 0;
 		return 1;
@@ -233,17 +234,17 @@ static cell AMX_NATIVE_CALL DestroyDataPack(AMX* amx, cell* params)
 
 AMX_NATIVE_INFO g_DatapackNatives[] = 
 {
-	{ "CreateDataPack",				CreateDataPack },
-	{ "WritePackCell",				WritePackCell },
-	{ "WritePackFloat",				WritePackFloat },
-	{ "WritePackString",			WritePackString },
-	{ "ReadPackCell",				ReadPackCell },
-	{ "ReadPackFloat",				ReadPackFloat },
-	{ "ReadPackString",				ReadPackString },
-	{ "ResetPack",					ResetPack },
-	{ "GetPackPosition",			GetPackPosition },
-	{ "SetPackPosition",			SetPackPosition },
-	{ "IsPackReadable",				IsPackReadable },
-	{ "DestroyDataPack",			DestroyDataPack },
-	{NULL,							NULL}
+	{ "CreateDataPack" , CreateDataPack },
+	{ "WritePackCell"  , WritePackCell },
+	{ "WritePackFloat" , WritePackFloat },
+	{ "WritePackString", WritePackString },
+	{ "ReadPackCell"   , ReadPackCell },
+	{ "ReadPackFloat"  , ReadPackFloat },
+	{ "ReadPackString" , ReadPackString },
+	{ "ResetPack"      , ResetPack },
+	{ "GetPackPosition", GetPackPosition },
+	{ "SetPackPosition", SetPackPosition },
+	{ "IsPackEnded"    , IsPackEnded },
+	{ "DestroyDataPack", DestroyDataPack },
+	{ nullptr          , nullptr}
 };
